@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# expo / react native
+.expo/
+dist/
+web-build/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+ios/
+android/
+
+# supabase
+supabase/.branches/
+supabase/.temp/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# build output
+build/
+*.tsbuildinfo
+
+# misc
+.DS_Store
+*.log
+.claude-temp/
