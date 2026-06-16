@@ -41,7 +41,27 @@ docs/CONCEPT.md    design document
 
 ```bash
 pnpm install
-pnpm mobile           # start Expo
-supabase start        # local Postgres + auth + realtime + edge functions
-supabase db reset     # apply migrations to the local db
+pnpm mobile                      # start Expo
+pnpm test                        # run unit tests (Vitest)
+pnpm exec supabase start         # local Postgres + auth + realtime + edge functions
+pnpm exec supabase db reset      # apply migrations to the local db
 ```
+
+### Replay a recorded match
+
+The replay engine streams a recorded match into the local Supabase stack at an
+accelerated speed — so the match room and demos run with zero live-API
+dependency. Start the stack first, then:
+
+```bash
+pnpm replay                      # default: arg-mex-2026 fixture at 60× (~90s)
+pnpm replay -- --speed=600       # faster (~9s)
+pnpm replay -- --fixture=arg-mex-2026.json --speed=300
+```
+
+`--speed` is match-minutes per real-second (60 = real time). The runner validates
+the fixture, clears any prior events for that match, then writes events into
+`match_events` in timeline order and advances `matches.status`
+(scheduled → live → halftime → finished). Re-running is idempotent.
+
+Recorded-match fixtures live in [`supabase/seed/replay/`](supabase/seed/replay/).

@@ -2,12 +2,14 @@
   "name": "vitness",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "description": "VITNESS — second-screen World Cup companion: 2D play reconstructions, who-was-in-the-play trivia, and a sticker album you earn by watching.",
   "scripts": {
     "mobile": "pnpm --filter mobile start",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "vitest run",
+    "replay": "node supabase/seed/replay/run-replay.ts"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -19,6 +21,8 @@
     ]
   },
   "devDependencies": {
-    "supabase": "^2.106.0"
+    "supabase": "^2.106.0",
+    "vitest": "^4.1.0",
+    "@supabase/supabase-js": "^2.47.0"
   }
 }

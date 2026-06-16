@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TeamSideSchema } from "./match.ts";
 
 /**
  * PlayScript — the single animation contract that powers everything: the live
@@ -20,9 +21,6 @@ export const PitchPointSchema = z.object({
   y: z.number().min(0).max(PITCH_WIDTH),
 });
 export type PitchPoint = z.infer<typeof PitchPointSchema>;
-
-export const TeamSideSchema = z.enum(["home", "away"]);
-export type TeamSide = z.infer<typeof TeamSideSchema>;
 
 /**
  * A participant in the play. `slotId` is the stable handle the trivia layer

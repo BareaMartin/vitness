@@ -1,0 +1,58 @@
+{
+  "match": {
+    "id": "wc2026-grp-arg-mex",
+    "providerMatchId": "demo-arg-mex",
+    "homeTeam": "Argentina",
+    "awayTeam": "Mexico",
+    "kickoffAt": "2026-06-20T20:00:00-06:00",
+    "status": "scheduled"
+  },
+  "lineups": {
+    "home": {
+      "formation": "4-3-3",
+      "players": [
+        { "id": "arg-23", "name": "Emiliano Martínez", "shirtNumber": 23, "position": "GK" },
+        { "id": "arg-26", "name": "Nahuel Molina", "shirtNumber": 26, "position": "RB" },
+        { "id": "arg-13", "name": "Cristian Romero", "shirtNumber": 13, "position": "CB" },
+        { "id": "arg-19", "name": "Nicolás Otamendi", "shirtNumber": 19, "position": "CB" },
+        { "id": "arg-3", "name": "Nicolás Tagliafico", "shirtNumber": 3, "position": "LB" },
+        { "id": "arg-7", "name": "Rodrigo De Paul", "shirtNumber": 7, "position": "CM" },
+        { "id": "arg-5", "name": "Leandro Paredes", "shirtNumber": 5, "position": "CM" },
+        { "id": "arg-20", "name": "Alexis Mac Allister", "shirtNumber": 20, "position": "CM" },
+        { "id": "arg-11", "name": "Ángel Di María", "shirtNumber": 11, "position": "RW" },
+        { "id": "arg-10", "name": "Lionel Messi", "shirtNumber": 10, "position": "AM" },
+        { "id": "arg-9", "name": "Julián Álvarez", "shirtNumber": 9, "position": "ST" }
+      ]
+    },
+    "away": {
+      "formation": "4-2-3-1",
+      "players": [
+        { "id": "mex-1", "name": "Guillermo Ochoa", "shirtNumber": 1, "position": "GK" },
+        { "id": "mex-3", "name": "César Montes", "shirtNumber": 3, "position": "CB" },
+        { "id": "mex-15", "name": "Johan Vásquez", "shirtNumber": 15, "position": "CB" },
+        { "id": "mex-23", "name": "Jesús Gallardo", "shirtNumber": 23, "position": "LB" },
+        { "id": "mex-19", "name": "Jorge Sánchez", "shirtNumber": 19, "position": "RB" },
+        { "id": "mex-4", "name": "Edson Álvarez", "shirtNumber": 4, "position": "DM" },
+        { "id": "mex-16", "name": "Héctor Herrera", "shirtNumber": 16, "position": "CM" },
+        { "id": "mex-22", "name": "Hirving Lozano", "shirtNumber": 22, "position": "RW" },
+        { "id": "mex-8", "name": "Carlos Rodríguez", "shirtNumber": 8, "position": "AM" },
+        { "id": "mex-11", "name": "Alexis Vega", "shirtNumber": 11, "position": "LW" },
+        { "id": "mex-9", "name": "Raúl Jiménez", "shirtNumber": 9, "position": "ST" }
+      ]
+    }
+  },
+  "events": [
+    { "type": "kickoff", "minute": 0, "team": "home", "providerEventId": "arg-mex-e01" },
+    { "type": "shot", "minute": 9, "team": "home", "providerEventId": "arg-mex-e02", "playerId": "arg-9", "onTarget": true },
+    { "type": "goal", "minute": 23, "team": "home", "providerEventId": "arg-mex-e03", "scorerId": "arg-10", "assistId": "arg-11" },
+    { "type": "card", "minute": 31, "team": "away", "providerEventId": "arg-mex-e04", "playerId": "mex-4", "cardType": "yellow" },
+    { "type": "corner", "minute": 38, "team": "away", "providerEventId": "arg-mex-e05" },
+    { "type": "goal", "minute": 41, "team": "away", "providerEventId": "arg-mex-e06", "scorerId": "mex-9", "assistId": "mex-22" },
+    { "type": "half_time", "minute": 45, "team": "home", "providerEventId": "arg-mex-e07" },
+    { "type": "substitution", "minute": 58, "team": "away", "providerEventId": "arg-mex-e08", "playerOutId": "mex-8", "playerInId": "mex-16" },
+    { "type": "shot", "minute": 67, "team": "home", "providerEventId": "arg-mex-e09", "playerId": "arg-11", "onTarget": false },
+    { "type": "goal", "minute": 76, "team": "home", "providerEventId": "arg-mex-e10", "scorerId": "arg-10", "assistId": "arg-11" },
+    { "type": "card", "minute": 84, "team": "away", "providerEventId": "arg-mex-e11", "playerId": "mex-3", "cardType": "yellow" },
+    { "type": "full_time", "minute": 90, "team": "home", "providerEventId": "arg-mex-e12" }
+  ]
+}
