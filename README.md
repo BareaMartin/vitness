@@ -59,9 +59,25 @@ pnpm replay -- --speed=600       # faster (~9s)
 pnpm replay -- --fixture=arg-mex-2026.json --speed=300
 ```
 
-`--speed` is match-minutes per real-second (60 = real time). The runner validates
-the fixture, clears any prior events for that match, then writes events into
-`match_events` in timeline order and advances `matches.status`
-(scheduled → live → halftime → finished). Re-running is idempotent.
+`--speed` is the acceleration factor vs real time: `1` = real time (a 90-minute
+match takes 90 minutes), `60` ≈ 90 minutes in 90 seconds, `600` ≈ 9 seconds. For
+a watchable live demo use ~`120` (≈45s). The runner validates the fixture, clears
+any prior events for that match, then writes events into `match_events` in
+timeline order and advances `matches.status` (scheduled → live → halftime →
+finished). Re-running is idempotent.
 
 Recorded-match fixtures live in [`supabase/seed/replay/`](supabase/seed/replay/).
+
+### Run the app against the replay
+
+```bash
+pnpm exec supabase start          # backend (requires Docker)
+pnpm --filter mobile exec expo start --web   # or: pnpm mobile
+# open the app, tap the match, then in another terminal:
+pnpm replay -- --speed=120        # watch the room update live
+```
+
+The app signs in **anonymously** on launch (so RLS-gated reads work), which
+requires `enable_anonymous_sign_ins = true` in `supabase/config.toml` (already
+set). The match room subscribes to `match_events` over Realtime and updates with
+no refresh as the replay streams.
