@@ -19,6 +19,7 @@ interface Props {
   width: number;
   height: number;
   playToken: number;
+  revealed?: boolean;
 }
 
 /**
@@ -27,7 +28,7 @@ interface Props {
  * helper, so this component only maps pitch coordinates (120×80) to pixels and
  * paints. SVG renders identically on web and native with no WASM dependency.
  */
-export default function JugadaCanvas({ script, width, height, playToken }: Props) {
+export default function JugadaCanvas({ script, width, height, playToken, revealed = true }: Props) {
   const [t, setT] = useState(0);
   const startRef = useRef<number | null>(null);
 
@@ -80,7 +81,7 @@ export default function JugadaCanvas({ script, width, height, playToken }: Props
         );
       })}
 
-      {script.actors.map((actor) => {
+      {revealed && script.actors.map((actor) => {
         const p = frame.actors[actor.slotId];
         if (!p || actor.shirtNumber === undefined) return null;
         return (

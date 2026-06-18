@@ -79,6 +79,24 @@ helper in `@vitness/shared`. Demo play-scripts are hand-authored in
 pending the `compose-play` pipeline, which will write the same shape to the
 `jugadas` table.
 
+### Jugada trivia ("who was in the play?")
+
+Tapping a goal opens a **server-authoritative** quiz: the dots are anonymous, and
+the client fetches an answer-key-free challenge from the `jugada_challenges` view.
+Picking the players and locking sends them to the `submit-answer` edge function,
+which grades against the server-held key, awards coins (25/correct slot) and a
+pack (perfect set) idempotently, and returns the reveal. The answer key is never
+in the client bundle. Challenges are seeded by
+[`supabase/seed/jugadas/seed-jugadas.ts`](supabase/seed/jugadas/seed-jugadas.ts):
+
+```bash
+node supabase/seed/jugadas/seed-jugadas.ts   # after the match is seeded
+```
+
+> Local note: the first `submit-answer` call after `supabase functions serve`
+> starts pays a one-time cold-start compile; warm it once (any authenticated
+> POST) before demoing.
+
 ### Run the app against the replay
 
 ```bash

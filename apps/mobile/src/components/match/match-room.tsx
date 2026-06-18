@@ -7,7 +7,8 @@ import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useMatchRoom } from "@/hooks/use-match-room";
-import { JugadaPitch } from "@/components/jugada/jugada-pitch";
+import { useCoins } from "@/hooks/use-coins";
+import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
 import { demoJugadaFor } from "@/data/demo-jugadas";
 import { eventLabel } from "./event-label";
 import { MomentumBar } from "./momentum-bar";
@@ -67,6 +68,7 @@ function EventRow({
 export function MatchRoom({ matchId, onBack }: { matchId: string; onBack: () => void }) {
   const theme = useTheme();
   const { match, events, score, minute, loading, error } = useMatchRoom(matchId);
+  const { coins, refresh: refreshCoins } = useCoins();
   const [openGoal, setOpenGoal] = useState<MatchEvent | null>(null);
 
   if (error) {
@@ -103,11 +105,18 @@ export function MatchRoom({ matchId, onBack }: { matchId: string; onBack: () => 
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={onBack} hitSlop={Spacing.two}>
-        <ThemedText type="link" themeColor="textSecondary">
-          ‹ Matches
-        </ThemedText>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable onPress={onBack} hitSlop={Spacing.two}>
+          <ThemedText type="link" themeColor="textSecondary">
+            ‹ Matches
+          </ThemedText>
+        </Pressable>
+        <View style={styles.coinsChip}>
+          <ThemedText type="small" style={styles.coinsText}>
+            🪙 {coins}
+          </ThemedText>
+        </View>
+      </View>
 
       <ThemedView type="backgroundElement" style={styles.scoreCard}>
         <View style={styles.statusRow}>
@@ -156,7 +165,14 @@ export function MatchRoom({ matchId, onBack }: { matchId: string; onBack: () => 
         </ScrollView>
       )}
 
-      {openGoal ? <JugadaOverlay match={match} goal={openGoal} onClose={() => setOpenGoal(null)} /> : null}
+      {openGoal ? (
+        <JugadaOverlay
+          match={match}
+          goal={openGoal}
+          onClose={() => setOpenGoal(null)}
+          onAwarded={refreshCoins}
+        />
+      ) : null}
     </View>
   );
 }
@@ -165,10 +181,12 @@ function JugadaOverlay({
   match,
   goal,
   onClose,
+  onAwarded,
 }: {
   match: Match;
   goal: MatchEvent;
   onClose: () => void;
+  onAwarded: () => void;
 }) {
   const script = demoJugadaFor(goal.providerEventId);
   const title = `${goal.minute}' Goal — ${teamName(match, goal.team)}`;
@@ -187,11 +205,27 @@ function JugadaOverlay({
       </View>
     );
   }
-  return <JugadaPitch script={script} title={title} onClose={onClose} />;
+  return (
+    <JugadaTrivia
+      script={script}
+      providerEventId={goal.providerEventId}
+      title={title}
+      onClose={onClose}
+      onAwarded={onAwarded}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, gap: Spacing.three, paddingTop: Spacing.two },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  coinsChip: {
+    backgroundColor: "#FAEEDA",
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
+    borderRadius: 999,
+  },
+  coinsText: { color: "#633806" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: Spacing.four },
   scoreCard: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
   statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
