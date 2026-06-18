@@ -80,14 +80,10 @@ Then it returns 3 real stickers and they appear in user_stickers
 
 ### Proposed changes
 
-**Data acquisition — harvest once, snapshot, work offline (build-time, committed output):**
-- `supabase/seed/catalog/harvest.ts` — ONE resume-safe run that pulls everything from API-Football and snapshots each raw response to `supabase/seed/catalog/raw/` (committed): `league.json`, `teams.json`, `squads/<teamId>.json` (one per team), `fixtures.json`, `_meta.json`. ~51 calls total, inside the 100/day free cap.
-  - Resume-safe: skips any team whose squad file exists, so a re-run (even next day) continues without re-spending calls.
-  - Rate-limited: reads the remaining-quota headers, throttles for the per-minute cap, stops before the daily cap is exhausted.
-  - Probes free-tier access first and aborts cleanly if WC 2026 is blocked (no wasted calls).
-- **The snapshot in `raw/` is the source of truth for all downstream work** — the catalog builder and every iteration read it, never the API. The key lives only in env, never committed.
-- `supabase/seed/catalog/structure.json` — team display metadata (code, flagEmoji, primaryColor, secondaryColor) keyed by API team id; openfootball/hand-filled, merged with `teams.json` at build.
-- Fallback: until the harvest runs, the builder uses our existing ARG/MEX lineups so the loop is testable now.
+**Data acquisition (RESOLVED — API-Football dropped).** API-Football's free tier blocks WC 2026 (*"Free plans do not have access to this season, try from 2022 to 2024"*), so the harvester was removed. The free + accurate path:
+- **Structure → openfootball** (public domain, no key): real WC 2026 teams, groups, fixtures. Committed as static JSON; powers the match list and the 48-team mega-album shell (follow-up).
+- **Squads → hand-curated** in `supabase/seed/catalog/catalog-source.ts`: real rosters (names/numbers/positions) + team display metadata (flag, kit colours). Starts with ARG/MEX (mirrors the replay fixture); expand team-by-team. Factual data only.
+- A paid one-day provider pull could later complete all 48 squads into a committed snapshot, but no live key is wired.
 
 **Catalog builder:**
 - `supabase/seed/catalog/build-catalog.ts` (service role) — from structure + squads, upsert `stickers`:

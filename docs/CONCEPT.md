@@ -255,12 +255,13 @@ pnpm monorepo
 - Retro jugadas are therefore **exact reconstructions, not LLM guesses** — Maradona '86 animated from the genuine event sequence. A deterministic offline compiler (TypeScript) walks the possession chain ending in each famous goal and emits play-script JSON directly. The LLM is only used for distractor selection and flavor copy.
 - License: free for non-commercial use with attribution — fine for the hackathon; a commercial launch would need a licensing conversation.
 
-**Live mode → API-Football** ([api-football.com](https://www.api-football.com/), covers WC 2026):
-- Live fixture events updated ~15s server-side: goals with scorer **and assist**, cards, substitutions, VAR; lineups with formations and player positions; match statistics.
-- Free tier: 100 requests/day, all endpoints — enough for development against one live match/day (1 call/min ≈ 105 calls/match). Tournament/demo weeks need a paid tier or the replay engine.
-- Live play scripts are **stylized**: facts (scorer, assist, minute, lineup positions) anchor a template skeleton chosen by goal type (open play / counter / penalty / own goal); the LLM fills plausible waypoints, Zod-validated with template-only fallback. Honest framing preserved: live = illustration, retro = real data.
+**Structure → openfootball** ([github.com/openfootball/worldcup.json](https://github.com/openfootball/worldcup.json), public domain, no key): real WC 2026 teams, groups, and the fixture schedule (venues/dates). No full squads or live events, but accurate structure for the match list and the mega-album's team pages.
 
-**Supplements:** [openfootball/worldcup.json](https://github.com/openfootball/worldcup.json) — public-domain WC 2026 schedule/squad static JSON (seed data, zero API cost). football-data.org demoted to fallback (free tier is delayed-score only, no lineups).
+**Squads → hand-curated.** API-Football was evaluated and **dropped**: its free tier blocks current seasons (*"Free plans do not have access to this season, try from 2022 to 2024"*), so it cannot serve WC 2026 squads without a paid tier. Real rosters are hand-curated from public squad announcements (factual data — names/numbers/positions), starting with the demo teams and expanding. A paid one-day pull (any provider) could later complete all 48 squads into a committed snapshot, but no live key is wired.
+
+**Live mode → replay engine (no live provider wired).** No free source exposes live WC 2026 events, so live matches are driven by the replay engine (recorded/seeded match JSON streamed on a timeline). If a real live feed is added later it implements the existing `MatchDataProvider` contract. Live play scripts remain **stylized**: facts anchor a template skeleton by goal type; the LLM fills plausible waypoints (Zod-validated, template fallback). Honest framing preserved: live = illustration, retro = real data.
+
+**Retro → StatsBomb** (above) remains the real-data path for historic plays.
 
 ### Play-script pipeline
 
@@ -366,7 +367,7 @@ Design decisions adopted from this analysis (these change the spec):
 | Trade authorization | Server verifies both parties own the offered duplicates inside one transaction |
 | Mesa code brute-force | Rate-limited joins, member cap, regenerable codes, kick capability |
 | Realtime channel snooping | Channel subscriptions scoped: mesa channels members-only, user channels private |
-| Secrets | API-Football / Claude / TTS keys live server-side only; never shipped in the app bundle |
+| Secrets | Claude / TTS / any live-feed keys live server-side only; never shipped in the app bundle |
 | Push tokens | Stored per device, never exposed via API responses |
 | Endpoint abuse | Per-user and per-IP rate limits, strictest on answer submission and trade offers |
 | Young audience (WC reaches kids) | No free text anywhere (emote-only trading), minimal PII (display name + avatar), no DMs |

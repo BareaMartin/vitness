@@ -19,7 +19,7 @@ mesas, data pipeline, security model, and build order.
 | Mobile | Expo React Native + expo-router, Skia (pitch sim), Reanimated (packs) |
 | Backend | Supabase only — Postgres + RLS, edge functions (Deno), realtime, pg_cron poller |
 | Shared | `@vitness/shared` — PlayScript Zod schema + domain types |
-| Live data | API-Football (WC 2026) |
+| Live data | Replay engine (no free live WC 2026 feed); openfootball for structure |
 | Retro data | StatsBomb Open Data (compiled offline) |
 | AI | Claude (personas, live play composition) |
 

@@ -4,7 +4,7 @@ import { TeamSideSchema, matchSchema, matchLineupsSchema } from "./match.ts";
 /**
  * Match events — the live-shaped event stream that drives the match room, the
  * jugada reconstruction, and (later) trivia. A discriminated union on `type`
- * keeps each event's payload precise. Provider-agnostic: API-Football, static
+ * keeps each event's payload precise. Provider-agnostic: a live poller, static
  * fixtures, and the replay engine all normalize into this shape.
  *
  * `minute` covers extra time (0–130). `providerEventId` is the dedup key that

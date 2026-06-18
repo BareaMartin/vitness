@@ -3,7 +3,7 @@ import type { MatchEvent } from "./match-event.ts";
 
 /**
  * The single contract every match-data source implements: the live
- * API-Football poller (VIT-2), static JSON fixtures, and the replay engine.
+ * a future live-data poller, static JSON fixtures, and the replay engine.
  * Caller code depends only on this interface, so the source can be swapped with
  * no change to consumers. See docs/CONCEPT.md § Data providers.
  */
