@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { type StickerCard as Card, RARITY_COLOR, RARITY_LABEL } from "@vitness/shared";
 
 import { ThemedText } from "@/components/themed-text";
+import { Jersey } from "./jersey";
 
 const W = 104;
 const H = 150;
@@ -53,9 +54,11 @@ export function StickerCard({
             ▶
           </ThemedText>
         ) : (
-          <ThemedText type="title" style={[styles.bigNumber, { color: accent }]}>
-            {card.shirtNumber ?? "★"}
-          </ThemedText>
+          <Jersey
+            primary={card.team.primaryColor}
+            secondary={card.team.secondaryColor}
+            number={card.shirtNumber}
+          />
         )}
       </View>
 
@@ -109,7 +112,6 @@ const styles = StyleSheet.create({
   flag: { color: "#ffffff", fontSize: 12 },
   number: { color: "#ffffff", fontSize: 12 },
   body: { flex: 1, alignItems: "center", justifyContent: "center" },
-  bigNumber: { fontSize: 40, lineHeight: 44 },
   glyph: { fontSize: 32, lineHeight: 36 },
   footer: { paddingHorizontal: 8, paddingBottom: 8, gap: 1 },
   name: { color: "#ffffff", fontSize: 12 },

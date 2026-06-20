@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import type { StickerCard } from "@vitness/shared";
+import Constants from "expo-constants";
 
 import { supabase } from "@/lib/supabase";
+
+const extra = Constants.expoConfig?.extra ?? {};
+const configuredMockPackCount = Number(extra.mockPackCount ?? 0);
+const MOCK_PACK_COUNT = Number.isFinite(configuredMockPackCount)
+  ? Math.max(0, Math.trunc(configuredMockPackCount))
+  : 0;
+
+function buildMockPackIds(count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `mock-pack-${i + 1}`);
+}
 
 /** The demo match whose album the collection screen shows (the showcase match). */
 export const DEMO_MATCH_ID = "wc2026-grp-arg-mex";
@@ -50,7 +61,9 @@ export function useCollection(matchId: string = DEMO_MATCH_ID): CollectionState 
           .eq("match_id", matchId)
           .order("album_slot", { ascending: true }),
         supabase.from("user_stickers").select("sticker_id, count"),
-        supabase.from("packs").select("id").eq("state", "unopened"),
+        MOCK_PACK_COUNT > 0
+          ? Promise.resolve({ data: buildMockPackIds(MOCK_PACK_COUNT).map((id) => ({ id })) })
+          : supabase.from("packs").select("id").eq("state", "unopened"),
       ]);
 
       const ownedMap = new Map<string, number>(

@@ -30,6 +30,9 @@ export const StickerCardSchema = z.object({
   shirtNumber: z.number().int().min(1).max(99).optional(),
   position: z.string().optional(),
   embeddedJugadaId: z.string().optional(),
+  /** For golazo cards: the retro jugada (real historic goal of this player) that
+   * owning the card unlocks. Matches a providerEventId in retro-jugadas.json. */
+  historicMomentId: z.string().optional(),
 });
 export type StickerCard = z.infer<typeof StickerCardSchema>;
 

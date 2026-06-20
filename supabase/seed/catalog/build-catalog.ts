@@ -95,7 +95,10 @@ async function main(): Promise<void> {
       team: arg.team,
       title: "Messi · 76' winner",
       subtitle: "Golazo",
+      playerName: "Lionel Messi",
       embeddedJugadaId: golazoJugada?.id ?? undefined,
+      // Owning this golazo unlocks a real historic Messi goal (Track B).
+      historicMomentId: "retro-wc2022-final-messi",
     },
   });
 

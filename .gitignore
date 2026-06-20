@@ -42,3 +42,6 @@ qubika-agentic-framework/
 
 # QAF code graph (regenerable build artifact)
 .code-review-graph/
+
+# editor
+.vscode/

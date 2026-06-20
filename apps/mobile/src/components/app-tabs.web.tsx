@@ -27,6 +27,9 @@ export default function AppTabs() {
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Álbum</TabButton>
           </TabTrigger>
+          <TabTrigger name="golazos" href="/golazos" asChild>
+            <TabButton>Golazos</TabButton>
+          </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>

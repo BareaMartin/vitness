@@ -1,0 +1,836 @@
+[
+  {
+    "providerEventId": "retro-wc2022-final-dimaria",
+    "title": "World Cup 2022 final — the team goal",
+    "playerId": "arg-11",
+    "playScript": {
+      "version": 1,
+      "goalType": "open_play",
+      "durationMs": 6000,
+      "attackingSide": "home",
+      "actors": [
+        {
+          "slotId": "assist",
+          "team": "home",
+          "role": "assist"
+        },
+        {
+          "slotId": "scorer",
+          "team": "home",
+          "role": "scorer"
+        },
+        {
+          "slotId": "defender",
+          "team": "away",
+          "role": "defender"
+        },
+        {
+          "slotId": "keeper",
+          "team": "away",
+          "role": "keeper"
+        }
+      ],
+      "keyframes": [
+        {
+          "t": 0,
+          "ball": {
+            "x": 25.9,
+            "y": 71.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          }
+        },
+        {
+          "t": 0.11,
+          "ball": {
+            "x": 41.6,
+            "y": 59.2
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.22,
+          "ball": {
+            "x": 53.1,
+            "y": 61.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.33,
+          "ball": {
+            "x": 53.1,
+            "y": 61.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.44,
+          "ball": {
+            "x": 62.5,
+            "y": 68.2
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.56,
+          "ball": {
+            "x": 62.5,
+            "y": 68.2
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.67,
+          "ball": {
+            "x": 99.3,
+            "y": 54.9
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.78,
+          "ball": {
+            "x": 111.8,
+            "y": 32.1
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.89,
+          "ball": {
+            "x": 111.8,
+            "y": 32.1
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "shot"
+        },
+        {
+          "t": 1,
+          "ball": {
+            "x": 120,
+            "y": 32.1
+          },
+          "actors": {
+            "scorer": {
+              "x": 107.8,
+              "y": 32.1
+            },
+            "assist": {
+              "x": 99.3,
+              "y": 54.9
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 113.8,
+              "y": 36.1
+            }
+          },
+          "event": "goal"
+        }
+      ]
+    },
+    "distractors": [
+      {
+        "slotId": "scorer",
+        "role": "scorer",
+        "prompt": "Who finished the move?",
+        "options": [
+          {
+            "id": "arg-19",
+            "label": "Nicolás Otamendi"
+          },
+          {
+            "id": "arg-11",
+            "label": "Ángel Di María"
+          },
+          {
+            "id": "arg-3",
+            "label": "Nicolás Tagliafico"
+          },
+          {
+            "id": "arg-26",
+            "label": "Nahuel Molina"
+          }
+        ]
+      },
+      {
+        "slotId": "assist",
+        "role": "assist",
+        "prompt": "Who provided the assist?",
+        "options": [
+          {
+            "id": "arg-7",
+            "label": "Rodrigo De Paul"
+          },
+          {
+            "id": "arg-20",
+            "label": "Alexis Mac Allister"
+          },
+          {
+            "id": "arg-5",
+            "label": "Leandro Paredes"
+          },
+          {
+            "id": "arg-19",
+            "label": "Nicolás Otamendi"
+          }
+        ]
+      },
+      {
+        "slotId": "bodypart",
+        "role": "scorer",
+        "prompt": "Finished with…",
+        "options": [
+          {
+            "id": "d0",
+            "label": "Right Foot"
+          },
+          {
+            "id": "d1",
+            "label": "Head"
+          },
+          {
+            "id": "correct",
+            "label": "Left Foot"
+          }
+        ]
+      },
+      {
+        "slotId": "year",
+        "role": "origin",
+        "prompt": "Which World Cup?",
+        "options": [
+          {
+            "id": "d2",
+            "label": "2010"
+          },
+          {
+            "id": "correct",
+            "label": "2022"
+          },
+          {
+            "id": "d0",
+            "label": "2014"
+          },
+          {
+            "id": "d1",
+            "label": "2018"
+          }
+        ]
+      }
+    ],
+    "answerKey": {
+      "scorer": "arg-11",
+      "bodypart": "correct",
+      "year": "correct",
+      "assist": "arg-20"
+    }
+  },
+  {
+    "providerEventId": "retro-wc2022-final-messi",
+    "title": "World Cup 2022 final — Messi's extra-time strike",
+    "playerId": "arg-10",
+    "playScript": {
+      "version": 1,
+      "goalType": "open_play",
+      "durationMs": 6000,
+      "attackingSide": "home",
+      "actors": [
+        {
+          "slotId": "assist",
+          "team": "home",
+          "role": "assist"
+        },
+        {
+          "slotId": "scorer",
+          "team": "home",
+          "role": "scorer"
+        },
+        {
+          "slotId": "defender",
+          "team": "away",
+          "role": "defender"
+        },
+        {
+          "slotId": "keeper",
+          "team": "away",
+          "role": "keeper"
+        }
+      ],
+      "keyframes": [
+        {
+          "t": 0,
+          "ball": {
+            "x": 42.8,
+            "y": 43.4
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          }
+        },
+        {
+          "t": 0.08,
+          "ball": {
+            "x": 42.8,
+            "y": 43.4
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.17,
+          "ball": {
+            "x": 63.1,
+            "y": 70.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.25,
+          "ball": {
+            "x": 63.1,
+            "y": 70.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.33,
+          "ball": {
+            "x": 94.2,
+            "y": 56.4
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.42,
+          "ball": {
+            "x": 91.2,
+            "y": 58.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.5,
+          "ball": {
+            "x": 91.2,
+            "y": 58.8
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.58,
+          "ball": {
+            "x": 95.4,
+            "y": 49.4
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.67,
+          "ball": {
+            "x": 95.4,
+            "y": 49.4
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.75,
+          "ball": {
+            "x": 109.3,
+            "y": 56.9
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "pass"
+        },
+        {
+          "t": 0.83,
+          "ball": {
+            "x": 109.3,
+            "y": 56.9
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "carry"
+        },
+        {
+          "t": 0.92,
+          "ball": {
+            "x": 116.6,
+            "y": 43
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "shot"
+        },
+        {
+          "t": 1,
+          "ball": {
+            "x": 120,
+            "y": 43
+          },
+          "actors": {
+            "scorer": {
+              "x": 112.6,
+              "y": 43
+            },
+            "assist": {
+              "x": 99,
+              "y": 55
+            },
+            "keeper": {
+              "x": 119,
+              "y": 40
+            },
+            "defender": {
+              "x": 118.6,
+              "y": 47
+            }
+          },
+          "event": "goal"
+        }
+      ]
+    },
+    "distractors": [
+      {
+        "slotId": "scorer",
+        "role": "scorer",
+        "prompt": "Who finished the move?",
+        "options": [
+          {
+            "id": "arg-19",
+            "label": "Nicolás Otamendi"
+          },
+          {
+            "id": "arg-10",
+            "label": "Lionel Messi"
+          },
+          {
+            "id": "arg-3",
+            "label": "Nicolás Tagliafico"
+          },
+          {
+            "id": "arg-26",
+            "label": "Nahuel Molina"
+          }
+        ]
+      },
+      {
+        "slotId": "bodypart",
+        "role": "scorer",
+        "prompt": "Finished with…",
+        "options": [
+          {
+            "id": "d0",
+            "label": "Head"
+          },
+          {
+            "id": "d1",
+            "label": "Left Foot"
+          },
+          {
+            "id": "correct",
+            "label": "Right Foot"
+          }
+        ]
+      },
+      {
+        "slotId": "year",
+        "role": "origin",
+        "prompt": "Which World Cup?",
+        "options": [
+          {
+            "id": "d2",
+            "label": "2010"
+          },
+          {
+            "id": "correct",
+            "label": "2022"
+          },
+          {
+            "id": "d0",
+            "label": "2014"
+          },
+          {
+            "id": "d1",
+            "label": "2018"
+          }
+        ]
+      }
+    ],
+    "answerKey": {
+      "scorer": "arg-10",
+      "bodypart": "correct",
+      "year": "correct"
+    }
+  }
+]

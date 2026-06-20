@@ -1,10 +1,27 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import type { StickerCard as Card } from "@vitness/shared";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  Easing,
+  runOnJS,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import Svg, { Polyline } from "react-native-svg";
+import { type StickerCard as Card, RARITY_COLOR } from "@vitness/shared";
 
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
+import { DEMO_MATCH_ID } from "@/hooks/use-collection";
 import { supabase } from "@/lib/supabase";
+import { GoalCelebration } from "./goal-animation";
 import { StickerCard } from "./sticker-card";
 
 interface Revealed {
@@ -12,19 +29,96 @@ interface Revealed {
   card: Card;
 }
 
+const CARD_W = 104;
+const CARD_H = 150;
+const STAGGER = 150;
+const PACK_W = 124;
+const PACK_H = 172;
+const TEAR_THRESHOLD = 104;
+const TEAR_Y = 80; // split line: the top half above this rips off
+const TEETH_H = 10;
+/** Zigzag points for the ragged torn edge, spanning the pack width. */
+const TEAR_ZIGZAG = (() => {
+  const teeth = 10;
+  const pts: string[] = [];
+  for (let i = 0; i <= teeth; i++) {
+    pts.push(`${((i * PACK_W) / teeth).toFixed(1)},${i % 2 === 0 ? 2 : TEETH_H - 2}`);
+  }
+  return pts.join(" ");
+})();
+
+/** Fire device haptics; no-op on web (expo-haptics is native-only). */
+function haptic(kind: "light" | "medium" | "heavy" | "success") {
+  if (Platform.OS === "web") return;
+  if (kind === "success") {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    return;
+  }
+  const style =
+    kind === "light"
+      ? Haptics.ImpactFeedbackStyle.Light
+      : kind === "heavy"
+        ? Haptics.ImpactFeedbackStyle.Heavy
+        : Haptics.ImpactFeedbackStyle.Medium;
+  Haptics.impactAsync(style).catch(() => {});
+}
+
 /**
- * Opens a pack: calls the server-authoritative open_pack RPC (replay-safe), then
- * fetches the rolled stickers' render payloads and reveals them as cards.
- * Re-opening the same pack returns the same contents (idempotent). See ticket
- * VIT-6.
+ * Opens a pack: calls the server-authoritative open_pack RPC (replay-safe) on
+ * mount so contents are persisted before anything shows, then gates the reveal
+ * behind a drag-to-tear gesture. Re-opening the same pack returns the same
+ * contents (idempotent). See ticket VIT-6.
+ *
+ * Juiced with Reanimated 4 worklets + gesture-handler: the sheet springs up, a
+ * sealed pack is dragged open (the tear seam glows with drag distance), then
+ * cards flip + scale in on a stagger. Rare/golazo cards add a pulsing halo and
+ * shimmer; golazo also gets a burst ring. Haptics fire on tear and on
+ * special-card reveals (native only). See ticket VIT-7.
  */
 export function PackOpening({ packId, onDone }: { packId: string; onDone: () => void }) {
   const [cards, setCards] = useState<Revealed[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"sealed" | "ripping" | "reveal">("sealed");
+  const [celebrated, setCelebrated] = useState(false);
+
+  const backdrop = useSharedValue(0);
+  const sheet = useSharedValue(0);
+  const drag = useSharedValue(0);
+  const tear = useSharedValue(0);
+
+  useEffect(() => {
+    backdrop.value = withTiming(1, { duration: 220 });
+    sheet.value = withSpring(1, { damping: 14, stiffness: 140, mass: 0.9 });
+  }, [backdrop, sheet]);
 
   useEffect(() => {
     let active = true;
     (async () => {
+      if (packId.startsWith("mock-pack-")) {
+        const { data: catalog, error: catalogError } = await supabase
+          .from("stickers")
+          .select("id, meta")
+          .eq("match_id", DEMO_MATCH_ID);
+        if (!active) return;
+        if (catalogError) {
+          setError(catalogError.message);
+          return;
+        }
+
+        const pool = ((catalog as { id: string; meta: Card }[]) ?? []).filter((s) => s.meta);
+        if (pool.length === 0) {
+          setError("No stickers available to mock-pack.");
+          return;
+        }
+
+        const mockRows: Revealed[] = Array.from({ length: 3 }, (_, slot) => {
+          const pick = pool[Math.floor(Math.random() * pool.length)]!;
+          return { slot, card: pick.meta };
+        });
+        setCards(mockRows);
+        return;
+      }
+
       const { data: rolled, error: openErr } = await supabase.rpc("open_pack", { p_pack_id: packId });
       if (!active) return;
       if (openErr) {
@@ -45,31 +139,252 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
     };
   }, [packId]);
 
+  const startRip = () => {
+    setPhase("ripping");
+    haptic("heavy");
+    tear.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.quad) });
+    // Let the top half visibly rip off before swapping in the reveal.
+    setTimeout(() => setPhase("reveal"), 430);
+  };
+
+  const pan = Gesture.Pan()
+    .enabled(phase === "sealed")
+    .onUpdate((e) => {
+      drag.value = Math.max(0, e.translationY);
+    })
+    .onEnd(() => {
+      if (drag.value >= TEAR_THRESHOLD) {
+        runOnJS(startRip)();
+      } else {
+        drag.value = withSpring(0, { damping: 16, stiffness: 180 });
+      }
+    });
+
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
+  const sheetStyle = useAnimatedStyle(() => ({
+    opacity: sheet.value,
+    transform: [{ translateY: (1 - sheet.value) * 24 }, { scale: 0.92 + sheet.value * 0.08 }],
+  }));
+
+  const revealing = phase === "reveal";
+  const showCards = revealing && cards !== null;
+  const golazo = (cards ?? []).some((c) => c.card.rarity === "golazo");
+
   return (
-    <View style={styles.backdrop}>
-      <View style={styles.sheet}>
+    <Animated.View style={[styles.backdrop, backdropStyle]}>
+      <Animated.View style={[styles.sheet, sheetStyle]}>
         <ThemedText type="default" style={styles.title}>
-          {error ? "Could not open pack" : cards ? "You pulled" : "Opening pack…"}
+          {error
+            ? "Could not open pack"
+            : showCards
+              ? "You pulled"
+              : phase === "sealed"
+                ? "Tear it open"
+                : "Opening…"}
         </ThemedText>
 
         {error ? (
           <ThemedText type="small" style={styles.error}>
             {error}
           </ThemedText>
+        ) : revealing ? (
+          cards ? (
+            <View style={styles.row}>
+              {cards.map((c, i) => (
+                <RevealCard key={c.slot} card={c.card} index={i} />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.packArea} />
+          )
         ) : (
-          <View style={styles.row}>
-            {(cards ?? []).map((c) => (
-              <StickerCard key={c.slot} card={c.card} />
-            ))}
-          </View>
+          <TearablePack pan={pan} drag={drag} tear={tear} />
         )}
 
-        <Pressable style={styles.done} onPress={onDone} disabled={!cards && !error}>
+        <Pressable style={styles.done} onPress={onDone} disabled={!showCards}>
           <ThemedText type="small" style={styles.doneText}>
-            {cards || error ? "Add to album" : "…"}
+            {showCards ? "Add to album" : phase === "sealed" ? "Drag the pack down ↓" : "…"}
           </ThemedText>
         </Pressable>
+      </Animated.View>
+
+      {showCards && golazo && !celebrated ? <GoalCelebration onDone={() => setCelebrated(true)} /> : null}
+    </Animated.View>
+  );
+}
+
+/** The blue pack face (emblem + wordmark), drawn full-height and clipped into halves. */
+function PackFace() {
+  return (
+    <View style={styles.packFace}>
+      <View style={styles.packEmblem}>
+        <ThemedText type="title" style={styles.packBall}>
+          ⚽
+        </ThemedText>
+        <ThemedText type="smallBold" style={styles.packWord}>
+          VITNESS
+        </ThemedText>
       </View>
+    </View>
+  );
+}
+
+/** Ragged torn paper edge drawn across the pack width at the tear line. */
+function TornEdge() {
+  return (
+    <Svg width={PACK_W} height={TEETH_H}>
+      <Polyline points={TEAR_ZIGZAG} fill="none" stroke="#CFE3F8" strokeWidth={2} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+/**
+ * The sealed pack, split into a top and bottom half along a ragged tear line.
+ * Dragging lifts the top half (seam glows); past the threshold the top half
+ * rips off — flying up, rotating and fading — while the bottom half settles,
+ * revealing the cards behind it.
+ */
+function TearablePack({
+  pan,
+  drag,
+  tear,
+}: {
+  pan: ReturnType<typeof Gesture.Pan>;
+  drag: SharedValue<number>;
+  tear: SharedValue<number>;
+}) {
+  const topStyle = useAnimatedStyle(() => {
+    const prog = Math.min(drag.value / TEAR_THRESHOLD, 1);
+    return {
+      opacity: 1 - tear.value,
+      transform: [
+        { translateY: -prog * 10 - tear.value * 160 },
+        { translateX: -tear.value * 20 },
+        { rotate: `${-prog * 2 - tear.value * 22}deg` },
+      ],
+    };
+  });
+
+  const bottomStyle = useAnimatedStyle(() => {
+    const prog = Math.min(drag.value / TEAR_THRESHOLD, 1);
+    return {
+      opacity: 1 - tear.value * 0.3,
+      transform: [{ translateY: prog * 3 + tear.value * 12 }],
+    };
+  });
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(drag.value / TEAR_THRESHOLD, 1) * (1 - tear.value),
+  }));
+
+  return (
+    <View style={styles.packArea}>
+      <GestureDetector gesture={pan}>
+        <View style={styles.packBox}>
+          <Animated.View style={[styles.halfBottom, bottomStyle]}>
+            <View style={styles.halfBottomInner}>
+              <View style={styles.faceShift}>
+                <PackFace />
+              </View>
+            </View>
+            <View style={styles.tornEdge}>
+              <TornEdge />
+            </View>
+          </Animated.View>
+
+          <Animated.View style={[styles.halfTop, topStyle]}>
+            <View style={styles.halfTopInner}>
+              <PackFace />
+            </View>
+            <View style={styles.tornEdge}>
+              <TornEdge />
+            </View>
+          </Animated.View>
+
+          <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none" />
+        </View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+/**
+ * A single revealed card: flips in (rotateY) while scaling and sliding up on a
+ * per-index stagger. Rare/golazo add a pulsing accent halo + a one-shot shimmer
+ * sweep; golazo also fires a burst ring and a heavier overshoot once it lands.
+ * Haptics fire as each special card lands (native only).
+ */
+function RevealCard({ card, index }: { card: Card; index: number }) {
+  const reveal = useSharedValue(0);
+  const halo = useSharedValue(0);
+  const shimmer = useSharedValue(-1);
+  const burst = useSharedValue(0);
+
+  const accent = RARITY_COLOR[card.rarity];
+  const special = card.rarity !== "common";
+  const isGolazo = card.rarity === "golazo";
+  const delay = index * STAGGER;
+
+  useEffect(() => {
+    reveal.value = withDelay(
+      delay,
+      withSpring(1, { damping: isGolazo ? 8 : 11, stiffness: isGolazo ? 95 : 110, mass: 0.8 }),
+    );
+    if (special) {
+      halo.value = withDelay(
+        delay + 260,
+        withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true),
+      );
+      shimmer.value = withDelay(
+        delay + 300,
+        withSequence(withTiming(2, { duration: 750, easing: Easing.in(Easing.quad) }), withTiming(2, { duration: 0 })),
+      );
+    }
+    if (isGolazo) {
+      burst.value = withDelay(delay + 180, withTiming(1, { duration: 620, easing: Easing.out(Easing.quad) }));
+    }
+    if (special && !isGolazo) {
+      // golazo haptic is owned by the goal celebration overlay
+      const t = setTimeout(() => haptic("light"), delay + 180);
+      return () => clearTimeout(t);
+    }
+  }, [delay, special, isGolazo, reveal, halo, shimmer, burst]);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
+    transform: [
+      { perspective: 800 },
+      { translateY: (1 - reveal.value) * 30 },
+      { scale: 0.5 + reveal.value * 0.5 },
+      { rotateY: `${(1 - reveal.value) * 90}deg` },
+    ],
+  }));
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: halo.value * 0.55 * reveal.value,
+    transform: [{ scale: 1.04 + halo.value * 0.06 }],
+  }));
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: shimmer.value >= 0 && shimmer.value <= 1 ? 0.7 : 0,
+    transform: [{ translateX: shimmer.value * (CARD_W + 60) - 30 }, { rotate: "18deg" }],
+  }));
+
+  const burstStyle = useAnimatedStyle(() => ({
+    opacity: (1 - burst.value) * 0.8,
+    transform: [{ scale: 0.5 + burst.value * 1.4 }],
+  }));
+
+  return (
+    <View style={styles.cardSlot}>
+      {isGolazo ? <Animated.View style={[styles.burst, { borderColor: accent }, burstStyle]} /> : null}
+      {special ? <Animated.View style={[styles.halo, { backgroundColor: accent }, haloStyle]} /> : null}
+      <Animated.View style={cardStyle}>
+        <View style={styles.clip}>
+          <StickerCard card={card} />
+          {special ? <Animated.View style={[styles.shimmer, shimmerStyle]} /> : null}
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -90,6 +405,60 @@ const styles = StyleSheet.create({
   title: { color: "#ffffff" },
   row: { flexDirection: "row", gap: Spacing.two, justifyContent: "center" },
   error: { color: "#F0997B" },
+  packArea: { width: PACK_W + 40, height: CARD_H + 24, alignItems: "center", justifyContent: "center" },
+  packBox: { width: PACK_W, height: PACK_H },
+  packFace: {
+    width: PACK_W,
+    height: PACK_H,
+    borderRadius: 14,
+    backgroundColor: "#185FA5",
+    borderWidth: 2,
+    borderColor: "#2E7BC9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  halfTop: { position: "absolute", top: 0, left: 0, width: PACK_W, height: TEAR_Y },
+  halfTopInner: { width: PACK_W, height: TEAR_Y, overflow: "hidden" },
+  halfBottom: { position: "absolute", top: 0, left: 0, width: PACK_W, height: PACK_H },
+  halfBottomInner: {
+    position: "absolute",
+    top: TEAR_Y,
+    left: 0,
+    width: PACK_W,
+    height: PACK_H - TEAR_Y,
+    overflow: "hidden",
+  },
+  faceShift: { marginTop: -TEAR_Y },
+  tornEdge: { position: "absolute", top: TEAR_Y - TEETH_H / 2, left: 0 },
+  glow: {
+    position: "absolute",
+    top: TEAR_Y - 8,
+    left: 8,
+    right: 8,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#FFE08A",
+  },
+  packEmblem: { alignItems: "center", gap: 6 },
+  packBall: { fontSize: 44, lineHeight: 48 },
+  packWord: { color: "#DCEBFB", letterSpacing: 2 },
+  cardSlot: { width: CARD_W, height: CARD_H, alignItems: "center", justifyContent: "center" },
+  halo: { position: "absolute", width: CARD_W, height: CARD_H, borderRadius: 16 },
+  burst: {
+    position: "absolute",
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: 18,
+    borderWidth: 3,
+  },
+  clip: { width: CARD_W, height: CARD_H, borderRadius: 12, overflow: "hidden" },
+  shimmer: {
+    position: "absolute",
+    top: -30,
+    bottom: -30,
+    width: 26,
+    backgroundColor: "rgba(255,255,255,0.75)",
+  },
   done: {
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
