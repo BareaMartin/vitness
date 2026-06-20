@@ -18,7 +18,7 @@ declare
   v_match_id text;
   v_state pack_state;
   v_pity_rare integer;
-  v_pity_golazo integer;
+  v_pity_legendary integer;
   v_slot integer;
   v_roll double precision;
   v_rarity sticker_rarity;
@@ -44,8 +44,8 @@ begin
     return;
   end if;
 
-  select coins_pity.pity_since_rare, coins_pity.pity_since_golazo
-    into v_pity_rare, v_pity_golazo
+  select coins_pity.pity_since_rare, coins_pity.pity_since_legendary
+    into v_pity_rare, v_pity_legendary
   from profiles coins_pity
   where coins_pity.id = v_profile
   for update;
@@ -53,28 +53,30 @@ begin
   for v_slot in 0..2 loop
     v_roll := random();
 
-    -- Pity timers: forced upgrades when the counters cross their thresholds.
-    if v_pity_golazo >= 29 then
-      v_rarity := 'golazo';
-    elsif v_pity_rare >= 9 then
-      v_rarity := (case when v_roll < 0.17 then 'golazo' else 'rare' end)::sticker_rarity;
-    elsif v_roll < 0.05 then
-      v_rarity := 'golazo';
-    elsif v_roll < 0.30 then
+    -- Rarity roll. Legendary (country badges + legend players + golazo moments)
+    -- is the prestige tier; pity timers force an upgrade when the counters cross
+    -- their thresholds so the chase always pays off.
+    if v_pity_legendary >= 11 then
+      v_rarity := 'legendary';
+    elsif v_pity_rare >= 8 then
+      v_rarity := (case when v_roll < 0.25 then 'legendary' else 'rare' end)::sticker_rarity;
+    elsif v_roll < 0.12 then
+      v_rarity := 'legendary';
+    elsif v_roll < 0.42 then
       v_rarity := 'rare';
     else
       v_rarity := 'common';
     end if;
 
-    if v_rarity = 'golazo' then
-      v_pity_golazo := 0;
+    if v_rarity = 'legendary' then
+      v_pity_legendary := 0;
       v_pity_rare := 0;
     elsif v_rarity = 'rare' then
       v_pity_rare := 0;
-      v_pity_golazo := v_pity_golazo + 1;
+      v_pity_legendary := v_pity_legendary + 1;
     else
       v_pity_rare := v_pity_rare + 1;
-      v_pity_golazo := v_pity_golazo + 1;
+      v_pity_legendary := v_pity_legendary + 1;
     end if;
 
     -- Pick a random sticker of the rolled rarity, biased to this match's pool.
@@ -102,7 +104,7 @@ begin
   end loop;
 
   update profiles
-    set pity_since_rare = v_pity_rare, pity_since_golazo = v_pity_golazo
+    set pity_since_rare = v_pity_rare, pity_since_legendary = v_pity_legendary
   where id = v_profile;
 
   update packs set state = 'opened_unviewed', opened_at = now() where id = p_pack_id;

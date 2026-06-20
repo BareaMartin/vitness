@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   const rows = WC2026_TEAMS.map((t, slot) => {
     const meta: StickerCard = {
       kind: "badge",
-      rarity: "common",
+      rarity: "legendary",
       team: {
         code: t.code,
         name: t.name,
@@ -36,7 +36,7 @@ async function main(): Promise<void> {
     return {
       match_id: null,
       album_slot: slot,
-      rarity: "common",
+      rarity: "legendary",
       title: t.name,
       subtitle: t.group,
       embedded_jugada_id: null,

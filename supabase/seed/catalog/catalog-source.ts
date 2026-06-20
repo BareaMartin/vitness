@@ -80,6 +80,25 @@ export const RARE_PLAYER_IDS = new Set<string>([
   "ned-11", // Gakpo
 ]);
 
+/** True icons — the legend tier. Their cards are legendary (like country badges).
+ * Everyone in RARE_PLAYER_IDS but not here is "rare"; everyone else is common. */
+export const LEGEND_PLAYER_IDS = new Set<string>([
+  "arg-10", // Messi
+  "por-7", // Ronaldo
+  "fra-10", // Mbappé
+  "bra-11", // Vinícius Júnior
+  "eng-10", // Bellingham
+  "esp-19", // Lamine Yamal
+  "ger-10", // Musiala
+]);
+
+/** Player rarity by tier: legend → legendary, standout → rare, else common. */
+export function playerRarity(id: string): "common" | "rare" | "legendary" {
+  if (LEGEND_PLAYER_IDS.has(id)) return "legendary";
+  if (RARE_PLAYER_IDS.has(id)) return "rare";
+  return "common";
+}
+
 export const ENGLAND: TeamSquad = {
   team: { code: "ENG", name: "England", flagEmoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", primaryColor: "#ffffff", secondaryColor: "#0a3b8c" },
   players: [

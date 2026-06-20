@@ -40,13 +40,13 @@ export type StickerCard = z.infer<typeof StickerCardSchema>;
 
 /** Hex accent per rarity for the card frame. */
 export const RARITY_COLOR: Record<z.infer<typeof StickerRaritySchema>, string> = {
-  common: "#888780",
-  rare: "#378ADD",
-  golazo: "#EF9F27",
+  common: "#8a8f98",
+  rare: "#3b82f6",
+  legendary: "#f2b705",
 };
 
 export const RARITY_LABEL: Record<z.infer<typeof StickerRaritySchema>, string> = {
   common: "Common",
   rare: "Rare",
-  golazo: "Golazo",
+  legendary: "Legendary",
 };

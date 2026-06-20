@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { StickerCard } from "../../../packages/shared/src/index.ts";
-import { SQUADS, RARE_PLAYER_IDS, DEMO_MATCH_ID } from "./catalog-source.ts";
+import { SQUADS, playerRarity, DEMO_MATCH_ID } from "./catalog-source.ts";
 
 /**
  * Builds the sticker catalog from the curated squads and seeds the stickers
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 
   for (const squad of SQUADS) {
     for (const p of squad.players) {
-      const rarity = RARE_PLAYER_IDS.has(p.id) ? "rare" : "common";
+      const rarity = playerRarity(p.id);
       rows.push({
         match_id: DEMO_MATCH_ID,
         album_slot: slot++,
@@ -85,13 +85,13 @@ async function main(): Promise<void> {
   rows.push({
     match_id: DEMO_MATCH_ID,
     album_slot: slot++,
-    rarity: "golazo",
+    rarity: "legendary",
     title: "Messi · 76' winner",
     subtitle: "Golazo",
     embedded_jugada_id: golazoJugada?.id ?? null,
     meta: {
       kind: "golazo",
-      rarity: "golazo",
+      rarity: "legendary",
       team: arg.team,
       title: "Messi · 76' winner",
       subtitle: "Golazo",

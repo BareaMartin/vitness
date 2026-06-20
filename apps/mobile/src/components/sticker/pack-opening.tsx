@@ -168,7 +168,7 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
 
   const revealing = phase === "reveal";
   const showCards = revealing && cards !== null;
-  const golazo = (cards ?? []).some((c) => c.card.rarity === "golazo");
+  const golazo = (cards ?? []).some((c) => c.card.kind === "golazo");
 
   return (
     <Animated.View style={[styles.backdrop, backdropStyle]}>
@@ -322,13 +322,13 @@ function RevealCard({ card, index }: { card: Card; index: number }) {
 
   const accent = RARITY_COLOR[card.rarity];
   const special = card.rarity !== "common";
-  const isGolazo = card.rarity === "golazo";
+  const isLegendary = card.rarity === "legendary";
   const delay = index * STAGGER;
 
   useEffect(() => {
     reveal.value = withDelay(
       delay,
-      withSpring(1, { damping: isGolazo ? 8 : 11, stiffness: isGolazo ? 95 : 110, mass: 0.8 }),
+      withSpring(1, { damping: isLegendary ? 8 : 11, stiffness: isLegendary ? 95 : 110, mass: 0.8 }),
     );
     if (special) {
       halo.value = withDelay(
@@ -340,15 +340,15 @@ function RevealCard({ card, index }: { card: Card; index: number }) {
         withSequence(withTiming(2, { duration: 750, easing: Easing.in(Easing.quad) }), withTiming(2, { duration: 0 })),
       );
     }
-    if (isGolazo) {
+    if (isLegendary) {
       burst.value = withDelay(delay + 180, withTiming(1, { duration: 620, easing: Easing.out(Easing.quad) }));
     }
-    if (special && !isGolazo) {
+    if (special && !isLegendary) {
       // golazo haptic is owned by the goal celebration overlay
       const t = setTimeout(() => haptic("light"), delay + 180);
       return () => clearTimeout(t);
     }
-  }, [delay, special, isGolazo, reveal, halo, shimmer, burst]);
+  }, [delay, special, isLegendary, reveal, halo, shimmer, burst]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: reveal.value,
@@ -377,7 +377,7 @@ function RevealCard({ card, index }: { card: Card; index: number }) {
 
   return (
     <View style={styles.cardSlot}>
-      {isGolazo ? <Animated.View style={[styles.burst, { borderColor: accent }, burstStyle]} /> : null}
+      {isLegendary ? <Animated.View style={[styles.burst, { borderColor: accent }, burstStyle]} /> : null}
       {special ? <Animated.View style={[styles.halo, { backgroundColor: accent }, haloStyle]} /> : null}
       <Animated.View style={cardStyle}>
         <View style={styles.clip}>

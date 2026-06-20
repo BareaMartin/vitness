@@ -6,7 +6,7 @@
 -- Enums
 -- ============================================================================
 
-create type sticker_rarity as enum ('common', 'rare', 'golazo');
+create type sticker_rarity as enum ('common', 'rare', 'legendary');
 create type pack_state as enum ('unopened', 'opened_unviewed', 'viewed');
 create type jugada_source as enum ('live', 'retro');
 create type trade_state as enum ('offered', 'accepted', 'declined', 'cancelled', 'expired');
@@ -21,7 +21,7 @@ create table profiles (
   team_code text,
   coins integer not null default 0 check (coins >= 0),
   pity_since_rare integer not null default 0,
-  pity_since_golazo integer not null default 0,
+  pity_since_legendary integer not null default 0,
   created_at timestamptz not null default now()
 );
 

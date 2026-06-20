@@ -2,7 +2,13 @@ import { z } from "zod";
 
 /** Domain enums shared between the mobile app and the edge functions. */
 
-export const StickerRaritySchema = z.enum(["common", "rare", "golazo"]);
+/**
+ * Sticker rarity tiers, in ascending prestige:
+ * - common: squad/role players
+ * - rare: standout / good players
+ * - legendary: legend players, every country badge, and golazo moments
+ */
+export const StickerRaritySchema = z.enum(["common", "rare", "legendary"]);
 export type StickerRarity = z.infer<typeof StickerRaritySchema>;
 
 export const PackStateSchema = z.enum(["unopened", "opened_unviewed", "viewed"]);
@@ -27,10 +33,10 @@ export const ECONOMY = {
 
 /** Drop-table odds and pity thresholds — mirror the open_pack SQL function. */
 export const DROP_TABLE = {
-  golazoChance: 0.05,
-  rareChance: 0.3,
-  pityRareEvery: 10,
-  pityGolazoEvery: 30,
+  legendaryChance: 0.12,
+  rareChance: 0.42,
+  pityRareEvery: 8,
+  pityLegendaryEvery: 12,
   packSize: 3,
 } as const;
 

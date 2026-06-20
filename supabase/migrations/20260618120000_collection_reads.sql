@@ -4,10 +4,12 @@
 
 alter table stickers add column meta jsonb not null default '{}'::jsonb;
 
--- The sticker catalog is public within the app.
-create policy "authenticated can read stickers"
+-- The sticker catalog is public (no secrets) — readable even before anonymous
+-- sign-in lands, so the album/mega-album never race the session.
+grant select on stickers to anon;
+create policy "anyone can read the sticker catalog"
   on stickers for select
-  to authenticated
+  to authenticated, anon
   using (true);
 
 -- A user reads only its own packs and inventory.
