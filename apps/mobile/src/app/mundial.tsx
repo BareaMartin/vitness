@@ -5,7 +5,7 @@ import type { StickerCard as Card } from "@vitness/shared";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { Brand, BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
 import { useMegaAlbum } from "@/hooks/use-mega-album";
 import { useTeamSquad } from "@/hooks/use-team-squad";
 import { StickerCard } from "@/components/sticker/sticker-card";
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, width: "100%", maxWidth: MaxContentWidth, alignSelf: "center" },
   content: {
     padding: Spacing.three,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.four + WebHeaderInset,
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.two,
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginVertical: Spacing.one,
   },
-  progressFill: { height: "100%", backgroundColor: "#1D9E75" },
+  progressFill: { height: "100%", backgroundColor: Brand.accent },
   group: { gap: Spacing.one, marginTop: Spacing.two },
   groupTitle: { color: "#9aa0a6" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.two },

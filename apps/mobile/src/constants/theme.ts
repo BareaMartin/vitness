@@ -63,3 +63,16 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/** VITNESS brand palette — one energetic pitch-green accent + the legendary gold,
+ * used for the wordmark, active nav, primary CTAs, and progress. */
+export const Brand = {
+  accent: '#16C47F',
+  accentInk: '#04231A',
+  legendary: '#f2b705',
+  ink: '#0B0D0F',
+  surface: '#16181C',
+} as const;
+
+/** Clearance for the floating web nav bar so screen content never sits under it. */
+export const WebHeaderInset = Platform.OS === 'web' ? 76 : 0;

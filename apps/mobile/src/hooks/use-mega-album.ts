@@ -42,7 +42,14 @@ export function useMegaAlbum(): MegaAlbumState {
   const refresh = useCallback(() => {
     void (async () => {
       const [{ data: badges }, { data: owned }] = await Promise.all([
-        supabase.from("stickers").select("id, album_slot, meta").is("match_id", null).order("album_slot"),
+        // Badges are match_id-null, but so are the tournament-wide player cards
+        // now — so scope to kind=badge or the mega-album scoops up players too.
+        supabase
+          .from("stickers")
+          .select("id, album_slot, meta")
+          .is("match_id", null)
+          .eq("meta->>kind", "badge")
+          .order("album_slot"),
         supabase.from("user_stickers").select("sticker_id"),
       ]);
       const ownedSet = new Set(((owned as { sticker_id: string }[]) ?? []).map((r) => r.sticker_id));

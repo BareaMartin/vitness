@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
 import { useCollection } from "@/hooks/use-collection";
 import { StickerCard } from "@/components/sticker/sticker-card";
 import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, width: "100%", maxWidth: MaxContentWidth, alignSelf: "center" },
   content: {
     padding: Spacing.three,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.four + WebHeaderInset,
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.two,
   },
