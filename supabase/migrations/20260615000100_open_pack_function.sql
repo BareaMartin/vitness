@@ -79,16 +79,17 @@ begin
       v_pity_legendary := v_pity_legendary + 1;
     end if;
 
-    -- Pick a random sticker of the rolled rarity, biased to this match's pool.
+    -- Pick a random sticker of the rolled tier, biased to this match's pool.
+    -- Rolls on roll_rarity (drop odds), not rarity (visual prestige).
     select s.id into v_sticker
     from stickers s
-    where s.rarity = v_rarity
+    where s.roll_rarity = v_rarity
       and (v_match_id is null or s.match_id = v_match_id or s.match_id is null)
     order by random()
     limit 1;
 
     if v_sticker is null then
-      select s.id into v_sticker from stickers s where s.rarity = v_rarity order by random() limit 1;
+      select s.id into v_sticker from stickers s where s.roll_rarity = v_rarity order by random() limit 1;
     end if;
 
     if v_sticker is null then

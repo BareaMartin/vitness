@@ -35,8 +35,12 @@ async function main(): Promise<void> {
     };
     return {
       match_id: null,
+      team_code: t.code,
       album_slot: slot,
+      // Legendary prestige (gold), but rolls from the common pool so the
+      // 48-nation mega-album stays collectible (VIT-12 decoupling).
       rarity: "legendary",
+      roll_rarity: "common",
       title: t.name,
       subtitle: t.group,
       embedded_jugada_id: null,
@@ -44,7 +48,7 @@ async function main(): Promise<void> {
     };
   });
 
-  await supabase.from("stickers").delete().is("match_id", null);
+  await supabase.from("stickers").delete().eq("meta->>kind", "badge");
   const { error } = await supabase.from("stickers").insert(rows);
   if (error) {
     console.error(`mega-album insert failed: ${error.message}`);

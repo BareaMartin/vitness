@@ -16,6 +16,8 @@ function buildMockPackIds(count: number): string[] {
 
 /** The demo match whose album the collection screen shows (the showcase match). */
 export const DEMO_MATCH_ID = "wc2026-grp-arg-mex";
+/** The showcase match's two teams — its album is their players + the match specials. */
+const DEMO_TEAM_CODES = ["ARG", "MEX"];
 
 export interface CatalogSticker {
   id: string;
@@ -58,7 +60,10 @@ export function useCollection(matchId: string = DEMO_MATCH_ID): CollectionState 
         supabase
           .from("stickers")
           .select("id, rarity, album_slot, meta")
-          .eq("match_id", matchId)
+          // The match album = the two teams' (tournament-wide) players + this
+          // match's own specials (MOTM/golazo); badges live in the mega-album.
+          .or(`match_id.eq.${matchId},team_code.in.(${DEMO_TEAM_CODES.join(",")})`)
+          .neq("meta->>kind", "badge")
           .order("album_slot", { ascending: true }),
         supabase.from("user_stickers").select("sticker_id, count"),
         MOCK_PACK_COUNT > 0

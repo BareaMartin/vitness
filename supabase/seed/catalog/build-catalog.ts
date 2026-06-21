@@ -1,13 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import type { StickerCard } from "../../../packages/shared/src/index.ts";
-import { SQUADS, playerRarity, DEMO_MATCH_ID } from "./catalog-source.ts";
+import { SQUADS_BY_NAME, playerRarity, DEMO_MATCH_ID } from "./catalog-source.ts";
 
 /**
- * Builds the sticker catalog from the curated squads and seeds the stickers
- * table. Player cards (rarity by standout heuristic) plus the demo match's MOTM
- * and golazo (linked to the winning goal's jugada). Each row carries a
- * StickerCard render payload in meta so the app draws from one row. Idempotent
- * per match. See ticket VIT-5.
+ * Builds the player sticker catalog from every curated squad. Player cards are
+ * tournament-wide (no match_id, tagged with team_code) so they show both in a
+ * team's mega-album page and in any match album for that team. The demo match's
+ * MOTM + golazo stay match-scoped. roll_rarity drives drop odds, rarity drives
+ * visual prestige (see VIT-12). Idempotent by card kind. See ticket VIT-5/VIT-12.
  */
 
 const LOCAL_URL = "http://127.0.0.1:54321";
@@ -15,9 +15,11 @@ const LOCAL_SERVICE_ROLE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
 interface StickerRow {
-  match_id: string;
+  match_id: string | null;
+  team_code: string;
   album_slot: number;
   rarity: string;
+  roll_rarity: string;
   title: string;
   subtitle: string;
   embedded_jugada_id: string | null;
@@ -38,13 +40,19 @@ async function main(): Promise<void> {
   const rows: StickerRow[] = [];
   let slot = 0;
 
-  for (const squad of SQUADS) {
+  const squads = Object.values(SQUADS_BY_NAME);
+  const seen = new Set<string>();
+  for (const squad of squads) {
+    if (seen.has(squad.team.code)) continue;
+    seen.add(squad.team.code);
     for (const p of squad.players) {
       const rarity = playerRarity(p.id);
       rows.push({
-        match_id: DEMO_MATCH_ID,
+        match_id: null,
+        team_code: squad.team.code,
         album_slot: slot++,
         rarity,
+        roll_rarity: rarity,
         title: p.name,
         subtitle: `${p.position} · ${squad.team.name}`,
         embedded_jugada_id: null,
@@ -62,11 +70,13 @@ async function main(): Promise<void> {
     }
   }
 
-  const arg = SQUADS[0]!;
+  const arg = SQUADS_BY_NAME.Argentina!;
   rows.push({
     match_id: DEMO_MATCH_ID,
+    team_code: arg.team.code,
     album_slot: slot++,
     rarity: "rare",
+    roll_rarity: "rare",
     title: "Player of the Match",
     subtitle: "Lionel Messi",
     embedded_jugada_id: null,
@@ -84,8 +94,10 @@ async function main(): Promise<void> {
 
   rows.push({
     match_id: DEMO_MATCH_ID,
+    team_code: arg.team.code,
     album_slot: slot++,
     rarity: "legendary",
+    roll_rarity: "legendary",
     title: "Messi · 76' winner",
     subtitle: "Golazo",
     embedded_jugada_id: golazoJugada?.id ?? null,
@@ -97,12 +109,13 @@ async function main(): Promise<void> {
       subtitle: "Golazo",
       playerName: "Lionel Messi",
       embeddedJugadaId: golazoJugada?.id ?? undefined,
-      // Owning this golazo unlocks a real historic Messi goal (Track B).
       historicMomentId: "retro-wc2022-final-messi",
     },
   });
 
+  // Idempotent by kind: clear players + the demo specials, leave badges alone.
   await supabase.from("stickers").delete().eq("match_id", DEMO_MATCH_ID);
+  await supabase.from("stickers").delete().is("match_id", null).eq("meta->>kind", "player");
   const { error } = await supabase.from("stickers").insert(rows);
   if (error) {
     console.error(`catalog insert failed: ${error.message}`);
@@ -113,7 +126,7 @@ async function main(): Promise<void> {
     acc[r.rarity] = (acc[r.rarity] ?? 0) + 1;
     return acc;
   }, {});
-  console.log(`✓ seeded ${rows.length} stickers for ${DEMO_MATCH_ID}:`, JSON.stringify(byRarity));
+  console.log(`✓ seeded ${rows.length} stickers across ${seen.size} teams:`, JSON.stringify(byRarity));
   console.log(`  golazo linked to jugada: ${golazoJugada?.id ?? "(none — seed jugadas first)"}`);
 }
 

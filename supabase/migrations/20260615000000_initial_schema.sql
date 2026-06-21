@@ -104,8 +104,13 @@ create table trivia_attempts (
 create table stickers (
   id uuid primary key default gen_random_uuid (),
   match_id text references matches (id) on delete cascade,
+  team_code text,
   album_slot integer not null,
+  -- rarity = visual prestige tier (common/rare/legendary); roll_rarity = the
+  -- tier open_pack actually rolls this card from. Decoupled so a card can look
+  -- legendary (e.g. a country badge) yet drop like a common (stay collectible).
   rarity sticker_rarity not null,
+  roll_rarity sticker_rarity not null default 'common',
   title text not null,
   subtitle text,
   art_url text,
@@ -114,6 +119,7 @@ create table stickers (
 );
 
 create index stickers_match_idx on stickers (match_id);
+create index stickers_team_idx on stickers (team_code);
 
 -- A pack belongs to a user and is rolled server-side. State machine:
 -- unopened -> opened_unviewed (roll committed) -> viewed (reveal shown).
