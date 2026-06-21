@@ -14,6 +14,9 @@ import { JerseyShape } from "@/components/sticker/jersey";
 // Fallback kits (used when the caller doesn't know the real teams).
 const DEFAULT_HOME_KIT: Kit = { primary: "#3FA7FF", secondary: "#ffffff" };
 const DEFAULT_AWAY_KIT: Kit = { primary: "#E5544B", secondary: "#ffffff" };
+// Goalkeepers wear a distinct kit (different per side so the two keepers differ).
+const GK_HOME = { primary: "#FACC15", secondary: "#1b1b1b" };
+const GK_AWAY = { primary: "#22C55E", secondary: "#0b2a14" };
 const BALL_COLOR = "#ffffff";
 const LINE = "rgba(255,255,255,0.55)";
 const ACCENT = "#16C47F";
@@ -144,7 +147,9 @@ export default function JugadaCanvas({
       {play.actors.map((actor) => {
         const p = frame.actors[actor.slotId];
         if (!p) return null;
-        const kit = actor.team === "home" ? homeKit : awayKit;
+        const teamKit = actor.team === "home" ? homeKit : awayKit;
+        const gk = actor.role === "keeper";
+        const kit = gk ? (actor.team === "home" ? GK_HOME : GK_AWAY) : teamKit;
         return (
           <JerseyShape
             key={actor.slotId}
@@ -153,7 +158,7 @@ export default function JugadaCanvas({
             size={22}
             primary={kit.primary}
             secondary={kit.secondary}
-            flag={kit.flag}
+            flag={teamKit.flag}
             number={actor.shirtNumber}
             showNumber={revealed && actor.shirtNumber !== undefined}
             highlight={actor.role === "scorer" && revealed}

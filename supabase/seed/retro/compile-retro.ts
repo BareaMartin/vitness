@@ -206,41 +206,19 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
     return out;
   };
 
-  // Opposition raw targets: a back line just goal-side of the ball, each defender
-  // tracking the ball's lane with its own gain; the nearest one steps out to press.
-  const DEF_LANES = [22, 40, 58];
-  const DEF_YGAIN = [0.16, 0.34, 0.22];
-  const defRaw: P[][] = DEF_LANES.map(() => []);
-  const keeperRaw: P[] = [];
-  for (let i = 0; i <= n; i++) {
-    const b = B[i]!;
-    let nearest = 0;
-    let best = Infinity;
-    DEF_LANES.forEach((ly, k) => {
-      const d = Math.abs(ly - b.y);
-      if (d < best) {
-        best = d;
-        nearest = k;
-      }
-    });
-    const lineX = clamp(b.x + 6, 82, 114);
-    DEF_LANES.forEach((laneY, k) => {
-      let tx = lineX + (k - 1) * 3;
-      let ty = laneY + (b.y - 40) * DEF_YGAIN[k]!;
-      if (k === nearest) {
-        tx += 5;
-        ty = lerp(ty, b.y, 0.5);
-      }
-      defRaw[k]![i] = { x: tx, y: ty };
-    });
-    const react = clamp01((b.x - 80) / 36);
-    keeperRaw[i] = { x: lerp(119, 116.5, react), y: lerp(40, shotLoc.y, react) };
-  }
-  const defPos = defRaw.map((raw, k) => clampTrack(raw, [8.5, 9.5, 9][k]!).map(pt2));
-  const keeperPos = clampTrack(keeperRaw, 7.5).map(pt2);
+  // A team-mate/opponent holding a formation slot relative to a moving anchor:
+  // it tracks the ball's lane with its own gain, capped to a running speed (so it
+  // lags individually — never a synchronized block).
+  const slotTrack = (anchor: (b: P) => number, dx: number, laneY: number, yg: number, cap: number): P[] =>
+    clampTrack(
+      points.map((_, i) => {
+        const b = B[i]!;
+        return { x: clamp(anchor(b) + dx, 2, 118), y: clamp(laneY + (b.y - 40) * yg, 4, 76) };
+      }),
+      cap,
+    ).map(pt2);
 
-  // Attackers: capped too (sprint ~ 13 yd/s) so off-ball runs read as running,
-  // not teleporting; the on-ball carrier still keeps pace with the slow dribble.
+  // On the ball: the possession attackers (capped to a sprint).
   const atkPos = Array.from({ length: POOL }, (_, d) =>
     clampTrack(
       points.map((_, i) => posOnTrack(stations[d]!, i)),
@@ -248,16 +226,48 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
     ).map(pt2),
   );
 
+  // Opposition (defending the x=120 goal): GK + back four + midfield three +
+  // front three — a compact block that slides with the ball but as individuals.
+  const awayAnchor = (b: P) => clamp(b.x + 4, 78, 110);
+  const AWAY = [
+    { dx: 6, y: 14, yg: 0.12, cap: 9 }, { dx: 6, y: 31, yg: 0.12, cap: 9 }, { dx: 6, y: 49, yg: 0.12, cap: 9 }, { dx: 6, y: 66, yg: 0.12, cap: 9 },
+    { dx: -13, y: 22, yg: 0.2, cap: 9.5 }, { dx: -13, y: 40, yg: 0.2, cap: 9.5 }, { dx: -13, y: 58, yg: 0.2, cap: 9.5 },
+    { dx: -32, y: 28, yg: 0.24, cap: 10 }, { dx: -32, y: 40, yg: 0.24, cap: 10 }, { dx: -32, y: 52, yg: 0.24, cap: 10 },
+  ];
+  const awayOut = AWAY.map((o) => slotTrack(awayAnchor, o.dx, o.y, o.yg, o.cap));
+  const awayGk = clampTrack(
+    points.map((_, i) => {
+      const react = clamp01((B[i]!.x - 80) / 36);
+      return { x: lerp(119, 116.5, react), y: lerp(40, shotLoc.y, react) };
+    }),
+    7.5,
+  ).map(pt2);
+
+  // Scoring team's own GK + the team-mates not on the ball, filling it to eleven.
+  const homeAnchor = (b: P) => clamp(b.x - 30, 16, 72);
+  const HOME_FILL = [
+    { dx: 0, y: 20, yg: 0.15, cap: 11 }, { dx: 0, y: 60, yg: 0.15, cap: 11 },
+    { dx: -12, y: 40, yg: 0.15, cap: 11 }, { dx: -14, y: 12, yg: 0.12, cap: 10 },
+    { dx: -14, y: 68, yg: 0.12, cap: 10 }, { dx: 10, y: 30, yg: 0.18, cap: 11 },
+    { dx: 10, y: 50, yg: 0.18, cap: 11 }, { dx: -26, y: 40, yg: 0.12, cap: 10 },
+  ];
+  const nFill = Math.max(0, 10 - POOL);
+  const homeFill = HOME_FILL.slice(0, nFill).map((o) => slotTrack(homeAnchor, o.dx, o.y, o.yg, o.cap));
+  const homeGk = clampTrack(
+    points.map((_, i) => ({ x: 6, y: 40 + (B[i]!.y - 40) * 0.2 })),
+    6,
+  ).map(pt2);
+
   const keyframes = points.map((pt, i) => {
     const actors: Record<string, { x: number; y: number }> = {};
     for (let d = 0; d < POOL; d++) {
       const id = d === scorerDot ? "scorer" : d === assistDot ? "assist" : `atk${d}`;
       actors[id] = atkPos[d]![i]!;
     }
-    actors.keeper = keeperPos[i]!;
-    DEF_LANES.forEach((_, k) => {
-      actors[`def${k}`] = defPos[k]![i]!;
-    });
+    homeFill.forEach((tr, k) => (actors[`hf${k}`] = tr[i]!));
+    actors.hgk = homeGk[i]!;
+    awayOut.forEach((tr, k) => (actors[`ad${k}`] = tr[i]!));
+    actors.keeper = awayGk[i]!;
 
     return {
       t: Math.round(tAt(i) * 1000) / 1000,
@@ -281,8 +291,10 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
     attackingSide: "home",
     actors: [
       ...attackerActors,
+      ...homeFill.map((_, k) => ({ slotId: `hf${k}`, team: "home", role: "carrier" })),
+      { slotId: "hgk", team: "home", role: "keeper" },
+      ...awayOut.map((_, k) => ({ slotId: `ad${k}`, team: "away", role: "defender" })),
       { slotId: "keeper", team: "away", role: "keeper" },
-      ...DEF_LANES.map((_, k) => ({ slotId: `def${k}`, team: "away", role: "defender" })),
     ],
     keyframes,
   };
