@@ -149,7 +149,7 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
   const ownerAt: number[] = [0];
   for (let i = 1; i <= shotIdx; i++) ownerAt[i] = ownerAt[i - 1]! + (evs[i] === "pass" ? 1 : 0);
   const distinct = ownerAt[shotIdx]! + 1;
-  const POOL = Math.max(2, Math.min(distinct, 6)); // distinct attacker dots
+  const POOL = Math.max(2, Math.min(distinct, 8)); // distinct attacker dots
   const dotOf = (o: number) => ((o % POOL) + POOL) % POOL;
   const scorerDot = dotOf(ownerAt[shotIdx]!);
   let assistDot = dotOf(Math.max(0, ownerAt[kpIdx]! - 1)); // the key-pass player
@@ -175,25 +175,92 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
     return last.pos;
   };
 
-  const DEF_LANES = [24, 40, 56]; // opposition back-line y lanes
-  const keyframes = points.map((pt, i) => {
+  // Timing: pace each ball segment by event — a pass flies fast, a dribble is
+  // slow, the shot is quick. The play's duration is the real sum of those
+  // segment times, so the ball is fast on passes while players (who move at a
+  // capped running speed below) can keep up with the slower dribbles.
+  const seg = (i: number) => Math.hypot(B[i]!.x - B[i - 1]!.x, B[i]!.y - B[i - 1]!.y);
+  const speedOf = (e?: string) => (e === "pass" ? 24 : e === "carry" ? 8 : e === "shot" || e === "goal" ? 30 : 11);
+  const segT = [0];
+  for (let i = 1; i <= n; i++) segT[i] = segT[i - 1]! + Math.max(seg(i), 1) / speedOf(evs[i]);
+  const totalT = segT[n] || 1;
+  const durationMs = Math.max(4500, Math.min(12000, Math.round((totalT * 1000) / 100) * 100));
+  const tAt = (i: number) => segT[i]! / totalT;
+  const dtMs = (i: number) => (tAt(i) - tAt(i - 1)) * durationMs;
+
+  // Walk an actor's raw per-keyframe targets but never let it move faster than a
+  // real player — clamp each step to capYdS · dt. This both slows the darting
+  // and makes the defenders lag the ball by their own distance, so the back line
+  // moves as individuals instead of a synchronized block.
+  const clampTrack = (raw: P[], capYdS: number): P[] => {
+    const out: P[] = [raw[0]!];
+    for (let i = 1; i <= n; i++) {
+      const prev = out[i - 1]!;
+      const tgt = raw[i]!;
+      const maxStep = (capYdS * dtMs(i)) / 1000;
+      const dx = tgt.x - prev.x;
+      const dy = tgt.y - prev.y;
+      const d = Math.hypot(dx, dy);
+      out[i] = d <= maxStep || d === 0 ? tgt : { x: prev.x + (dx / d) * maxStep, y: prev.y + (dy / d) * maxStep };
+    }
+    return out;
+  };
+
+  // Opposition raw targets: a back line just goal-side of the ball, each defender
+  // tracking the ball's lane with its own gain; the nearest one steps out to press.
+  const DEF_LANES = [22, 40, 58];
+  const DEF_YGAIN = [0.16, 0.34, 0.22];
+  const defRaw: P[][] = DEF_LANES.map(() => []);
+  const keeperRaw: P[] = [];
+  for (let i = 0; i <= n; i++) {
     const b = B[i]!;
+    let nearest = 0;
+    let best = Infinity;
+    DEF_LANES.forEach((ly, k) => {
+      const d = Math.abs(ly - b.y);
+      if (d < best) {
+        best = d;
+        nearest = k;
+      }
+    });
+    const lineX = clamp(b.x + 6, 82, 114);
+    DEF_LANES.forEach((laneY, k) => {
+      let tx = lineX + (k - 1) * 3;
+      let ty = laneY + (b.y - 40) * DEF_YGAIN[k]!;
+      if (k === nearest) {
+        tx += 5;
+        ty = lerp(ty, b.y, 0.5);
+      }
+      defRaw[k]![i] = { x: tx, y: ty };
+    });
+    const react = clamp01((b.x - 80) / 36);
+    keeperRaw[i] = { x: lerp(119, 116.5, react), y: lerp(40, shotLoc.y, react) };
+  }
+  const defPos = defRaw.map((raw, k) => clampTrack(raw, [8.5, 9.5, 9][k]!).map(pt2));
+  const keeperPos = clampTrack(keeperRaw, 7.5).map(pt2);
+
+  // Attackers: capped too (sprint ~ 13 yd/s) so off-ball runs read as running,
+  // not teleporting; the on-ball carrier still keeps pace with the slow dribble.
+  const atkPos = Array.from({ length: POOL }, (_, d) =>
+    clampTrack(
+      points.map((_, i) => posOnTrack(stations[d]!, i)),
+      13,
+    ).map(pt2),
+  );
+
+  const keyframes = points.map((pt, i) => {
     const actors: Record<string, { x: number; y: number }> = {};
     for (let d = 0; d < POOL; d++) {
       const id = d === scorerDot ? "scorer" : d === assistDot ? "assist" : `atk${d}`;
-      actors[id] = pt2(posOnTrack(stations[d]!, i));
+      actors[id] = atkPos[d]![i]!;
     }
-    // keeper holds the line, sliding across once the ball enters the final third
-    const react = clamp01((b.x - 80) / 36);
-    actors.keeper = pt2({ x: lerp(119, 116.5, react), y: lerp(40, shotLoc.y, react) });
-    // a back line that retreats just goal-side of the ball and shifts toward it
-    const lineX = Math.max(b.x + 6, 80);
-    DEF_LANES.forEach((laneY, k) => {
-      actors[`def${k}`] = pt2({ x: lineX + (k - 1) * 3, y: lerp(laneY, b.y, 0.28) });
+    actors.keeper = keeperPos[i]!;
+    DEF_LANES.forEach((_, k) => {
+      actors[`def${k}`] = defPos[k]![i]!;
     });
 
     return {
-      t: Math.round((i / n) * 100) / 100,
+      t: Math.round(tAt(i) * 1000) / 1000,
       ball: { x: pt.p[0], y: pt.p[1] },
       actors,
       ...(pt.event ? { event: pt.event } : {}),
@@ -210,7 +277,7 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
   const playScript = {
     version: 1,
     goalType: "open_play",
-    durationMs: 6000,
+    durationMs,
     attackingSide: "home",
     actors: [
       ...attackerActors,

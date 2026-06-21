@@ -11,6 +11,8 @@ import type { PlayScript } from "./play-script.ts";
 const FULL_ENOUGH = 8;
 const SUPPORT_LANES = [20, 60]; // trailing teammates' y lanes
 const BACKLINE_LANES = [26, 40, 54]; // opposition back-line y lanes
+const BACKLINE_YGAIN = [0.14, 0.3, 0.2]; // per-defender tracking — avoids a rigid block
+const BACKLINE_DEPTH = [4, 8, 6]; // staggered depth so they don't sit in a straight line
 
 export function densifyPlayScript(script: PlayScript): PlayScript {
   if (script.actors.length >= FULL_ENOUGH) return script;
@@ -33,12 +35,13 @@ export function densifyPlayScript(script: PlayScript): PlayScript {
         y: round(clampY(lerp(laneY, b.y, 0.3))),
       };
     });
-    // opposition back line sits just goal-side of the ball and shifts toward it
+    // opposition back line sits just goal-side of the ball; each defender tracks
+    // it with its own gain/depth so they move as individuals, not a rigid block
     const lineX = clampX(b.x + dir * 7);
     BACKLINE_LANES.forEach((laneY, k) => {
       extra[`dz${k}`] = {
-        x: round(clampX(lineX + dir * (k - 1) * 3)),
-        y: round(clampY(lerp(laneY, b.y, 0.25))),
+        x: round(clampX(lineX + dir * BACKLINE_DEPTH[k]!)),
+        y: round(clampY(lerp(laneY, b.y, BACKLINE_YGAIN[k]!))),
       };
     });
     return { ...kf, actors: { ...kf.actors, ...extra } };
