@@ -1,14 +1,20 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
-import { useCollection } from "@/hooks/use-collection";
+import { useGolazos } from "@/hooks/use-golazos";
 import { StickerCard } from "@/components/sticker/sticker-card";
 import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
 import { retroJugadaById } from "@/data/retro";
+
+/** Replaces "Player · description" with "??? · description" until trivia solved. */
+function maskedTitle(title: string): string {
+  const sep = title.indexOf(" · ");
+  return sep >= 0 ? `??? · ${title.slice(sep + 3)}` : "???";
+}
 
 /**
  * Golazos — the special golazo cards, separated from the player album. Each
@@ -17,10 +23,9 @@ import { retroJugadaById } from "@/data/retro";
  * moment they'd unlock. See ticket VIT-9.
  */
 export default function GolazosScreen() {
-  const { stickers, loading, refresh } = useCollection();
+  const { golazos, loading, refresh } = useGolazos();
   const [openMomentId, setOpenMomentId] = useState<string | null>(null);
 
-  const golazos = useMemo(() => stickers.filter((s) => s.card.kind === "golazo"), [stickers]);
   const ownedCount = golazos.filter((g) => g.owned).length;
   const openJugada = openMomentId ? retroJugadaById(openMomentId) : null;
 
@@ -53,12 +58,13 @@ export default function GolazosScreen() {
           ) : (
             golazos.map((g) => {
               const moment = retroJugadaById(g.card.historicMomentId);
+              const displayTitle = g.solved ? g.card.title : maskedTitle(g.card.title);
               return (
                 <ThemedView key={g.id} type="backgroundElement" style={styles.card}>
                   <StickerCard card={g.owned ? g.card : null} />
                   <View style={styles.info}>
                     <ThemedText type="default" style={styles.title}>
-                      {g.card.title}
+                      {displayTitle}
                     </ThemedText>
                     {g.owned ? (
                       moment ? (
@@ -67,7 +73,7 @@ export default function GolazosScreen() {
                             ★ Historic moment unlocked
                           </ThemedText>
                           <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-                            ▶ {moment.title}
+                            ▶ {g.solved ? moment.title : maskedTitle(moment.title)}
                           </ThemedText>
                           <Pressable style={styles.playBtn} onPress={() => setOpenMomentId(moment.providerEventId)}>
                             <ThemedText type="small" style={styles.playText}>
@@ -82,7 +88,7 @@ export default function GolazosScreen() {
                       )
                     ) : (
                       <ThemedText type="small" themeColor="textSecondary">
-                        🔒 Pull this golazo to unlock {g.card.playerName ?? "the player"}&apos;s real historic goal.
+                        🔒 Pull this golazo to unlock the mystery scorer&apos;s real historic goal.
                       </ThemedText>
                     )}
                   </View>

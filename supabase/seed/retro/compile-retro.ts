@@ -46,6 +46,102 @@ async function loadEvents(matchId: number): Promise<SbEvent[]> {
   return JSON.parse(json);
 }
 
+/** A StatsBomb 360 freeze-frame entry: a visible player at a real position.
+ * Anonymous — `teammate` is relative to the event's possession team. */
+interface FF {
+  teammate: boolean;
+  actor: boolean;
+  keeper: boolean;
+  location: [number, number];
+}
+async function load360(matchId: number): Promise<Map<string, FF[]>> {
+  const cache = `/tmp/sb-360-${matchId}.json`;
+  let arr: { event_uuid: string; freeze_frame: FF[] }[];
+  if (existsSync(cache)) arr = JSON.parse(readFileSync(cache, "utf8"));
+  else {
+    const res = await fetch(`https://raw.githubusercontent.com/statsbomb/open-data/master/data/three-sixty/${matchId}.json`);
+    const json = await res.text();
+    writeFileSync(cache, json);
+    arr = JSON.parse(json);
+  }
+  return new Map(arr.map((e) => [e.event_uuid, e.freeze_frame]));
+}
+
+type Pt = { x: number; y: number };
+
+/**
+ * Stitch per-frame anonymous player positions into continuous tracks by matching
+ * each player to the nearest same-team player in the previous frame (greedy,
+ * within `thresh` yards). Players who leave the camera produce a null until they
+ * reappear (or never); identity is inferred purely by proximity. Returns one
+ * (Pt|null)[] per inferred player, length = number of frames.
+ */
+function matchTracks(frames: Pt[][], thresh: number): (Pt | null)[][] {
+  const nF = frames.length;
+  const tracks: (Pt | null)[][] = [];
+  (frames[0] ?? []).forEach((p) => {
+    const t: (Pt | null)[] = Array(nF).fill(null);
+    t[0] = p;
+    tracks.push(t);
+  });
+  const lastKnown = (t: (Pt | null)[], before: number): Pt | null => {
+    for (let j = before - 1; j >= 0; j--) if (t[j]) return t[j]!;
+    return null;
+  };
+  for (let k = 1; k < nF; k++) {
+    const cur = frames[k] ?? [];
+    const actives = tracks
+      .map((t, ti) => ({ ti, lp: lastKnown(t, k) }))
+      .filter((a): a is { ti: number; lp: Pt } => a.lp !== null);
+    const pairs: { pi: number; ti: number; d: number }[] = [];
+    cur.forEach((p, pi) => actives.forEach((a) => pairs.push({ pi, ti: a.ti, d: Math.hypot(p.x - a.lp.x, p.y - a.lp.y) })));
+    pairs.sort((x, y) => x.d - y.d);
+    const usedP = new Set<number>();
+    const usedT = new Set<number>();
+    for (const pr of pairs) {
+      if (pr.d > thresh) break;
+      if (usedP.has(pr.pi) || usedT.has(pr.ti)) continue;
+      tracks[pr.ti]![k] = cur[pr.pi]!;
+      usedP.add(pr.pi);
+      usedT.add(pr.ti);
+    }
+    cur.forEach((p, pi) => {
+      if (!usedP.has(pi)) {
+        const t: (Pt | null)[] = Array(nF).fill(null);
+        t[k] = p;
+        tracks.push(t);
+      }
+    });
+  }
+  return tracks;
+}
+
+/** Fill a track's null gaps: hold before the first sighting, interpolate interior
+ * gaps, hold after the last — so every frame has a position. */
+function fillTrack(t: (Pt | null)[]): Pt[] {
+  const nF = t.length;
+  const out: (Pt | null)[] = [...t];
+  let firstK = out.findIndex(Boolean);
+  if (firstK < 0) firstK = 0;
+  for (let i = 0; i < firstK; i++) out[i] = out[firstK];
+  let prev = firstK;
+  for (let i = firstK + 1; i < nF; i++) {
+    if (out[i]) {
+      if (i - prev > 1) {
+        const a = out[prev]!;
+        const b = out[i]!;
+        for (let j = prev + 1; j < i; j++) {
+          const f = (j - prev) / (i - prev);
+          out[j] = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+        }
+      }
+      prev = i;
+    }
+  }
+  for (let i = prev + 1; i < nF; i++) out[i] = out[prev];
+  return out as Pt[];
+}
+
 function shuffleSeeded<T>(arr: T[], seed: number): T[] {
   const a = [...arr];
   let s = seed;
@@ -90,9 +186,15 @@ const GOALS: GoalCfg[] = [
   { providerEventId: "retro-wc2022-final-messi", matchId: 3869685, possession: 228, title: "World Cup 2022 final — Messi's extra-time strike", opponent: "France" },
   // 80' Mbappé — France's second, the comeback goal (Thuram assist).
   { providerEventId: "retro-wc2022-final-mbappe", matchId: 3869685, possession: 165, title: "World Cup 2022 final — Mbappé's comeback goal", opponent: "Argentina" },
+  // 73' Richarlison bicycle kick vs Serbia — goal of the tournament.
+  { providerEventId: "retro-wc2022-bra-ser-richarlison", matchId: 3857258, possession: 133, title: "World Cup 2022 — Richarlison's bicycle kick", opponent: "Serbia" },
+  // 64' Messi opens the scoring vs Mexico — the goal that settled Argentina.
+  { providerEventId: "retro-wc2022-arg-mex-messi", matchId: 3857289, possession: 105, title: "World Cup 2022 — Messi unlocks Mexico", opponent: "Mexico" },
+  // 91' Mbappé curls in France's third vs Poland.
+  { providerEventId: "retro-wc2022-fra-pol-mbappe", matchId: 3869152, possession: 143, title: "World Cup 2022 — Mbappé vs Poland", opponent: "Poland" },
 ];
 
-function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
+function buildJugada(ev: SbEvent[], byFF: Map<string, FF[]>, cfg: GoalCfg) {
   const chain = ev
     .filter((e) => e.possession === cfg.possession && e.location && ["Pass", "Carry", "Shot"].includes(e.type.name))
     .sort((a, b) => a.index - b.index);
@@ -113,187 +215,163 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
   const scorerNum = shirtOf(scorerFull);
   const assistNum = assistFull ? shirtOf(assistFull) : undefined;
 
-  // Ball waypoints: first touch, every pass end, the shot, then the goal line.
-  const points: Array<{ p: [number, number]; event?: string }> = [];
-  chain.forEach((e) => {
-    if (points.length === 0 && e.location) points.push({ p: e.location });
-    if (e.type.name === "Pass" && e.pass?.end_location) points.push({ p: e.pass.end_location, event: "pass" });
-    if (e.type.name === "Carry" && e.location) points.push({ p: e.location, event: "carry" });
+  // ---- Real player movement from StatsBomb 360 freeze-frames ----
+  // Each chain event with a freeze-frame becomes a keyframe: the ball sits at the
+  // event and every VISIBLE player at its real recorded position. We stitch the
+  // anonymous per-event snapshots into continuous tracks by nearest-neighbour
+  // matching (matchTracks). `teammate` is relative to the possession team = the
+  // scoring side, so teammate → home. Players who leave the camera hold their last
+  // seen spot — the honest limit of the data.
+  const round1 = (v: number) => Math.round(v * 10) / 10;
+  const cl = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const clampPt = (p: Pt): Pt => ({ x: round1(cl(p.x, 0.5, 119.5)), y: round1(cl(p.y, 0.5, 79.5)) });
+  const shotLoc: Pt = { x: shot.location![0], y: shot.location![1] };
+
+  const tag = (t: string) => (t === "Pass" ? "pass" : t === "Carry" ? "carry" : t === "Shot" ? "shot" : undefined);
+  const framed = chain.filter((e) => byFF.has(e.id));
+  type Snap = { ball: Pt; ev?: string; home: Pt[]; away: Pt[]; hgk?: Pt; agk?: Pt; actorHome?: Pt };
+  const snaps: Snap[] = framed.map((e) => {
+    const home: Pt[] = [];
+    const away: Pt[] = [];
+    let hgk: Pt | undefined;
+    let agk: Pt | undefined;
+    let actorHome: Pt | undefined;
+    for (const p of byFF.get(e.id)!) {
+      const q: Pt = { x: p.location[0], y: p.location[1] };
+      if (p.keeper) {
+        if (p.teammate) hgk = q;
+        else agk = q;
+        continue;
+      }
+      if (p.teammate) {
+        home.push(q);
+        if (p.actor) actorHome = q;
+      } else away.push(q);
+    }
+    return { ball: { x: e.location![0], y: e.location![1] }, ev: tag(e.type.name), home, away, hgk, agk, actorHome };
   });
-  points.push({ p: shot.location!, event: "shot" });
-  points.push({ p: [120, shot.location![1]], event: "goal" });
+  // Final keyframe: the ball crosses the line; players hold their last spot.
+  const tail = snaps[snaps.length - 1];
+  snaps.push({ ball: { x: 120, y: shotLoc.y }, ev: "goal", home: [], away: [], hgk: tail?.hgk, agk: tail?.agk });
+  const K = snaps.length;
 
-  const n = points.length - 1;
-  // The ball polyline is real; the dots are SYNTHESIZED into a full team picture.
-  // Each ball touch belongs to an attacker; passes hand the ball to a DIFFERENT
-  // attacker, so every pass lands on a real receiver dot (no passing into space).
-  // Carries keep the same owner (a dribble). Off the ball, a player glides toward
-  // its next touch so it is in position to receive. We add an opposition keeper +
-  // back line so the pitch reads like 10 players, not 4.
-  type P = { x: number; y: number };
-  const clamp = (v: number, max: number) => Math.max(0.5, Math.min(max - 0.5, v));
-  const lerp = (a: number, b: number, f: number) => a + (b - a) * f;
-  const lerpP = (a: P, b: P, f: number): P => ({ x: lerp(a.x, b.x, f), y: lerp(a.y, b.y, f) });
-  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-  const pt2 = (p: P) => ({ x: Math.round(clamp(p.x, 120) * 10) / 10, y: Math.round(clamp(p.y, 80) * 10) / 10 });
-  const B: P[] = points.map((p) => ({ x: p.p[0], y: p.p[1] }));
-  const evs = points.map((p) => p.event);
-
-  const shotIdx = points.findIndex((p) => p.event === "shot");
-  let kpIdx = 0;
-  for (let i = 0; i < shotIdx; i++) if (evs[i] === "pass") kpIdx = i;
-  kpIdx = Math.max(1, Math.min(kpIdx || Math.floor(shotIdx * 0.6), shotIdx - 1));
-  const shotLoc: P = { x: shot.location![0], y: shot.location![1] };
-
-  // Ownership chain: a new owner on every pass, same owner through carries.
-  const ownerAt: number[] = [0];
-  for (let i = 1; i <= shotIdx; i++) ownerAt[i] = ownerAt[i - 1]! + (evs[i] === "pass" ? 1 : 0);
-  const distinct = ownerAt[shotIdx]! + 1;
-  const POOL = Math.max(2, Math.min(distinct, 8)); // distinct attacker dots
-  const dotOf = (o: number) => ((o % POOL) + POOL) % POOL;
-  const scorerDot = dotOf(ownerAt[shotIdx]!);
-  let assistDot = dotOf(Math.max(0, ownerAt[kpIdx]! - 1)); // the key-pass player
-  if (assistDot === scorerDot) assistDot = dotOf(scorerDot + 1);
-
-  // Each attacker's touch stations (keyframe index → ball position).
-  const stations: { i: number; pos: P }[][] = Array.from({ length: POOL }, () => []);
-  for (let i = 0; i <= shotIdx; i++) stations[dotOf(ownerAt[i]!)]!.push({ i, pos: B[i]! });
-  stations[scorerDot]!.push({ i: n, pos: shotLoc }); // striker holds as the ball flies in
-
-  // Position of a dot at keyframe j: interpolate between its touches; hold at the
-  // ends (an off-ball player drifts toward where it will next receive).
-  const posOnTrack = (st: { i: number; pos: P }[], j: number): P => {
-    if (st.length === 0) return B[0]!;
-    if (j <= st[0]!.i) return st[0]!.pos;
-    const last = st[st.length - 1]!;
-    if (j >= last.i) return last.pos;
-    for (let k = 0; k < st.length - 1; k++) {
-      const a = st[k]!;
-      const b = st[k + 1]!;
-      if (j >= a.i && j <= b.i) return lerpP(a.pos, b.pos, (j - a.i) / ((b.i - a.i) || 1));
-    }
-    return last.pos;
+  // Stitch the snapshots into tracks; cap each side to eleven (most-seen win, but
+  // always keep the pinned scorer/assist tracks even if they appear only late).
+  const finalize = (raw: (Pt | null)[][], cap: number, force: number[] = []): { tracks: Pt[][]; map: number[] } => {
+    const forced = force.filter((i) => i >= 0);
+    const rest = raw
+      .map((t, i) => ({ i, seen: t.filter(Boolean).length }))
+      .filter((x) => x.seen >= 2 && !forced.includes(x.i))
+      .sort((a, b) => b.seen - a.seen)
+      .map((x) => x.i);
+    const chosen = [...forced, ...rest].slice(0, cap);
+    return { tracks: chosen.map((i) => fillTrack(raw[i]!).map(clampPt)), map: chosen };
   };
 
-  // Timing: pace each ball segment by event — a pass flies fast, a dribble is
-  // slow, the shot is quick. The play's duration is the real sum of those
-  // segment times, so the ball is fast on passes while players (who move at a
-  // capped running speed below) can keep up with the slower dribbles.
+  // The `actor` in the shot frame is the scorer; in the key-pass frame, the
+  // assister — pin them in the RAW tracks before the cap can drop them.
+  const rawNearest = (raw: (Pt | null)[][], target: Pt | undefined, k: number): number => {
+    if (!target) return -1;
+    let best = -1;
+    let bd = 6; // within 6 yd or it isn't the same dot
+    raw.forEach((t, i) => {
+      const p = t[k];
+      if (!p) return;
+      const d = Math.hypot(p.x - target.x, p.y - target.y);
+      if (d < bd) {
+        bd = d;
+        best = i;
+      }
+    });
+    return best;
+  };
+  const shotK = K - 2; // the Shot keyframe (last framed event)
+  const kpK = keyPass ? framed.findIndex((e) => e.id === keyPass.id) : -1;
+  const homeRaw = matchTracks(snaps.map((s) => s.home), 20);
+  const scorerRaw = rawNearest(homeRaw, snaps[shotK]?.actorHome, shotK);
+  let assistRaw = kpK >= 0 ? rawNearest(homeRaw, snaps[kpK]?.actorHome, kpK) : -1;
+  if (assistRaw === scorerRaw) assistRaw = -1;
+  const homeSel = finalize(homeRaw, 10, [scorerRaw, assistRaw]);
+  const homeTracks = homeSel.tracks;
+  const scorerIdx = homeSel.map.indexOf(scorerRaw);
+  const assistIdx = assistRaw >= 0 ? homeSel.map.indexOf(assistRaw) : -1;
+  const awayTracks = finalize(matchTracks(snaps.map((s) => s.away), 20), 10).tracks;
+
+  // Keepers: a single player each — take the recorded position, hold when unseen.
+  const gkTrack = (key: "hgk" | "agk", restX: number): Pt[] => {
+    let last: Pt = { x: restX, y: 40 };
+    return snaps.map((s) => {
+      if (s[key]) last = s[key]!;
+      return clampPt(last);
+    });
+  };
+  const homeGk = gkTrack("hgk", 4);
+  const awayGk = gkTrack("agk", 118);
+
+  // Keep camera-late attackers onside at the start. The 360 camera often only
+  // catches a forward once he's already advanced, and fillTrack back-fills his
+  // earlier frames with that advanced spot — so he looks parked offside while the
+  // ball is still in defence. For each home track's pre-sighting frames, run him
+  // up from an onside start (no further forward than the second-last defender or
+  // the ball) to where he is first really seen, instead of holding it.
+  const offsideX = (i: number): number => {
+    const xs = [...awayTracks.map((tr) => tr[i]!.x), awayGk[i]!.x].sort((a, b) => b - a);
+    return Math.max(snaps[i]!.ball.x, xs[1] ?? xs[0] ?? snaps[i]!.ball.x);
+  };
+  homeSel.map.forEach((rawIdx, k) => {
+    const firstK = homeRaw[rawIdx]!.findIndex(Boolean);
+    if (firstK <= 0) return; // seen from the start — already real
+    const seen = homeTracks[k]![firstK]!;
+    const startX = Math.min(seen.x, offsideX(0));
+    for (let i = 0; i < firstK; i++) {
+      const run = startX + (seen.x - startX) * (i / firstK);
+      homeTracks[k]![i] = clampPt({ x: Math.min(run, offsideX(i) + 2), y: homeTracks[k]![i]!.y });
+    }
+  });
+
+  // Timing: pace each ball segment by event (pass fast, dribble slow, shot quick).
+  // PACE < 1 stretches the whole replay below real-time for readability.
+  const PACE = 0.4;
+  const N = K - 1;
+  const B: Pt[] = snaps.map((s) => s.ball);
   const seg = (i: number) => Math.hypot(B[i]!.x - B[i - 1]!.x, B[i]!.y - B[i - 1]!.y);
-  const speedOf = (e?: string) => (e === "pass" ? 24 : e === "carry" ? 8 : e === "shot" || e === "goal" ? 30 : 11);
+  const speedOf = (e?: string) => PACE * (e === "pass" ? 24 : e === "carry" ? 8 : e === "shot" || e === "goal" ? 30 : 11);
   const segT = [0];
-  for (let i = 1; i <= n; i++) segT[i] = segT[i - 1]! + Math.max(seg(i), 1) / speedOf(evs[i]);
-  const totalT = segT[n] || 1;
-  const durationMs = Math.max(4500, Math.min(12000, Math.round((totalT * 1000) / 100) * 100));
+  for (let i = 1; i <= N; i++) segT[i] = segT[i - 1]! + Math.max(seg(i), 1) / speedOf(snaps[i]!.ev);
+  const totalT = segT[N] || 1;
+  const durationMs = Math.max(10000, Math.min(22000, Math.round((totalT * 1000) / 100) * 100));
   const tAt = (i: number) => segT[i]! / totalT;
-  const dtMs = (i: number) => (tAt(i) - tAt(i - 1)) * durationMs;
 
-  // Walk an actor's raw per-keyframe targets but never let it move faster than a
-  // real player — clamp each step to capYdS · dt. This both slows the darting
-  // and makes the defenders lag the ball by their own distance, so the back line
-  // moves as individuals instead of a synchronized block.
-  const clampTrack = (raw: P[], capYdS: number): P[] => {
-    const out: P[] = [raw[0]!];
-    for (let i = 1; i <= n; i++) {
-      const prev = out[i - 1]!;
-      const tgt = raw[i]!;
-      const maxStep = (capYdS * dtMs(i)) / 1000;
-      const dx = tgt.x - prev.x;
-      const dy = tgt.y - prev.y;
-      const d = Math.hypot(dx, dy);
-      out[i] = d <= maxStep || d === 0 ? tgt : { x: prev.x + (dx / d) * maxStep, y: prev.y + (dy / d) * maxStep };
-    }
-    return out;
-  };
-
-  // A team-mate/opponent holding a formation slot relative to a moving anchor:
-  // it tracks the ball's lane with its own gain, capped to a running speed (so it
-  // lags individually — never a synchronized block).
-  const slotTrack = (anchor: (b: P) => number, dx: number, laneY: number, yg: number, cap: number): P[] =>
-    clampTrack(
-      points.map((_, i) => {
-        const b = B[i]!;
-        return { x: clamp(anchor(b) + dx, 2, 118), y: clamp(laneY + (b.y - 40) * yg, 4, 76) };
-      }),
-      cap,
-    ).map(pt2);
-
-  // On the ball: the possession attackers (capped to a sprint).
-  const atkPos = Array.from({ length: POOL }, (_, d) =>
-    clampTrack(
-      points.map((_, i) => posOnTrack(stations[d]!, i)),
-      13,
-    ).map(pt2),
-  );
-
-  // Opposition (defending the x=120 goal): GK + back four + midfield three +
-  // front three — a compact block that slides with the ball but as individuals.
-  const awayAnchor = (b: P) => clamp(b.x + 4, 78, 110);
-  const AWAY = [
-    { dx: 6, y: 14, yg: 0.12, cap: 9 }, { dx: 6, y: 31, yg: 0.12, cap: 9 }, { dx: 6, y: 49, yg: 0.12, cap: 9 }, { dx: 6, y: 66, yg: 0.12, cap: 9 },
-    { dx: -13, y: 22, yg: 0.2, cap: 9.5 }, { dx: -13, y: 40, yg: 0.2, cap: 9.5 }, { dx: -13, y: 58, yg: 0.2, cap: 9.5 },
-    { dx: -32, y: 28, yg: 0.24, cap: 10 }, { dx: -32, y: 40, yg: 0.24, cap: 10 }, { dx: -32, y: 52, yg: 0.24, cap: 10 },
-  ];
-  const awayOut = AWAY.map((o) => slotTrack(awayAnchor, o.dx, o.y, o.yg, o.cap));
-  const awayGk = clampTrack(
-    points.map((_, i) => {
-      const react = clamp01((B[i]!.x - 80) / 36);
-      return { x: lerp(119, 116.5, react), y: lerp(40, shotLoc.y, react) };
-    }),
-    7.5,
-  ).map(pt2);
-
-  // Scoring team's own GK + the team-mates not on the ball, filling it to eleven.
-  const homeAnchor = (b: P) => clamp(b.x - 30, 16, 72);
-  const HOME_FILL = [
-    { dx: 0, y: 20, yg: 0.15, cap: 11 }, { dx: 0, y: 60, yg: 0.15, cap: 11 },
-    { dx: -12, y: 40, yg: 0.15, cap: 11 }, { dx: -14, y: 12, yg: 0.12, cap: 10 },
-    { dx: -14, y: 68, yg: 0.12, cap: 10 }, { dx: 10, y: 30, yg: 0.18, cap: 11 },
-    { dx: 10, y: 50, yg: 0.18, cap: 11 }, { dx: -26, y: 40, yg: 0.12, cap: 10 },
-  ];
-  const nFill = Math.max(0, 10 - POOL);
-  const homeFill = HOME_FILL.slice(0, nFill).map((o) => slotTrack(homeAnchor, o.dx, o.y, o.yg, o.cap));
-  const homeGk = clampTrack(
-    points.map((_, i) => ({ x: 6, y: 40 + (B[i]!.y - 40) * 0.2 })),
-    6,
-  ).map(pt2);
-
-  const keyframes = points.map((pt, i) => {
-    const actors: Record<string, { x: number; y: number }> = {};
-    for (let d = 0; d < POOL; d++) {
-      const id = d === scorerDot ? "scorer" : d === assistDot ? "assist" : `atk${d}`;
-      actors[id] = atkPos[d]![i]!;
-    }
-    homeFill.forEach((tr, k) => (actors[`hf${k}`] = tr[i]!));
+  const homeId = (k: number) => (k === scorerIdx ? "scorer" : k === assistIdx ? "assist" : `h${k}`);
+  const keyframes = snaps.map((s, i) => {
+    const actors: Record<string, Pt> = {};
+    homeTracks.forEach((tr, k) => (actors[homeId(k)] = tr[i]!));
     actors.hgk = homeGk[i]!;
-    awayOut.forEach((tr, k) => (actors[`ad${k}`] = tr[i]!));
+    awayTracks.forEach((tr, k) => (actors[`a${k}`] = tr[i]!));
     actors.keeper = awayGk[i]!;
-
     return {
       t: Math.round(tAt(i) * 1000) / 1000,
-      ball: { x: pt.p[0], y: pt.p[1] },
+      ball: { x: round1(s.ball.x), y: round1(s.ball.y) },
       actors,
-      ...(pt.event ? { event: pt.event } : {}),
+      ...(s.ev ? { event: s.ev } : {}),
     };
   });
 
-  const attackerActors = Array.from({ length: POOL }, (_, d) => ({
-    slotId: d === scorerDot ? "scorer" : d === assistDot ? "assist" : `atk${d}`,
-    team: "home",
-    role: d === scorerDot ? "scorer" : d === assistDot ? "assist" : "carrier",
-    ...(d === scorerDot && scorerNum !== undefined ? { shirtNumber: scorerNum } : {}),
-    ...(d === assistDot && assistNum !== undefined ? { shirtNumber: assistNum } : {}),
-  }));
   const playScript = {
     version: 1,
     goalType: "open_play",
     durationMs,
     attackingSide: "home",
     actors: [
-      ...attackerActors,
-      ...homeFill.map((_, k) => ({ slotId: `hf${k}`, team: "home", role: "carrier" })),
+      ...homeTracks.map((_, k) => ({
+        slotId: homeId(k),
+        team: "home",
+        role: k === scorerIdx ? "scorer" : k === assistIdx ? "assist" : "carrier",
+        ...(k === scorerIdx && scorerNum !== undefined ? { shirtNumber: scorerNum } : {}),
+        ...(k === assistIdx && assistNum !== undefined ? { shirtNumber: assistNum } : {}),
+      })),
       { slotId: "hgk", team: "home", role: "keeper" },
-      ...awayOut.map((_, k) => ({ slotId: `ad${k}`, team: "away", role: "defender" })),
+      ...awayTracks.map((_, k) => ({ slotId: `a${k}`, team: "away", role: "defender" })),
       { slotId: "keeper", team: "away", role: "keeper" },
     ],
     keyframes,
@@ -321,28 +399,19 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
     ],
     7,
   );
-  const yearOptions = shuffleSeeded(
-    [
-      { id: "correct", label: "2022" },
-      { id: "d0", label: "2014" },
-      { id: "d1", label: "2018" },
-      { id: "d2", label: "2010" },
-    ],
-    9,
-  );
-
   const scorerQ = nameOptions(scorerFull, 11);
   // Solo finishes (e.g. a rebound) have no key pass — skip the assist question
   // rather than show a blank option.
   const assistQ = assistFull ? nameOptions(assistFull, 21) : null;
 
+  // No "which World Cup?" question — the title already names the tournament, so
+  // asking the year would be giving away the answer.
   const distractors = [
     { slotId: "scorer", role: "scorer", prompt: "Who finished the move?", options: scorerQ.options },
     ...(assistQ ? [{ slotId: "assist", role: "assist", prompt: "Who provided the assist?", options: assistQ.options }] : []),
     { slotId: "bodypart", role: "scorer", prompt: "Finished with…", options: bodyOptions },
-    { slotId: "year", role: "origin", prompt: "Which World Cup?", options: yearOptions },
   ];
-  const answerKey: Record<string, string> = { scorer: scorerQ.correctId, bodypart: "correct", year: "correct" };
+  const answerKey: Record<string, string> = { scorer: scorerQ.correctId, bodypart: "correct" };
   if (assistQ) answerKey.assist = assistQ.correctId;
 
   // Team kits for the replay jerseys: home = the scoring team, away = opponent.
@@ -366,10 +435,12 @@ function buildJugada(ev: SbEvent[], cfg: GoalCfg) {
 
 async function main(): Promise<void> {
   const byMatch = new Map<number, SbEvent[]>();
+  const byMatch360 = new Map<number, Map<string, FF[]>>();
   for (const matchId of new Set(GOALS.map((g) => g.matchId))) {
     byMatch.set(matchId, await loadEvents(matchId));
+    byMatch360.set(matchId, await load360(matchId));
   }
-  const jugadas = GOALS.map((cfg) => buildJugada(byMatch.get(cfg.matchId)!, cfg));
+  const jugadas = GOALS.map((cfg) => buildJugada(byMatch.get(cfg.matchId)!, byMatch360.get(cfg.matchId)!, cfg));
 
   mkdirSync(dirname(OUT), { recursive: true });
   writeFileSync(

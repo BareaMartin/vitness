@@ -23,11 +23,22 @@ export function StickerCard({
   onReplay?: () => void;
 }) {
   if (!card) {
+    // Ghost card: echoes the real layout (top bar · emblem · footer) so an empty
+    // slot reads as "yet to collect" rather than a blank box.
     return (
       <View style={[styles.card, styles.locked]}>
-        <ThemedText type="title" style={styles.lockMark}>
-          ?
-        </ThemedText>
+        <View style={styles.lockedTopBar} />
+        <View style={styles.lockedBody}>
+          <View style={styles.lockedEmblem}>
+            <ThemedText type="smallBold" style={styles.lockedMonogram}>
+              V
+            </ThemedText>
+          </View>
+        </View>
+        <View style={styles.lockedFooter}>
+          <View style={[styles.lockedLine, { width: "70%" }]} />
+          <View style={[styles.lockedLine, { width: "45%" }]} />
+        </View>
       </View>
     );
   }
@@ -98,13 +109,30 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   locked: {
-    borderColor: "#2E3135",
+    borderColor: "#2A2D31",
     borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "#0d0f12",
   },
-  lockMark: { color: "#3a3d42", fontSize: 32, lineHeight: 36 },
+  lockedTopBar: {
+    height: 22,
+    backgroundColor: "#191c20",
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  lockedBody: { flex: 1, alignItems: "center", justifyContent: "center" },
+  lockedEmblem: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: "#2E3338",
+    backgroundColor: "#121519",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lockedMonogram: { color: "#3d4248", fontSize: 20, letterSpacing: 1 },
+  lockedFooter: { paddingHorizontal: 8, paddingBottom: 12, gap: 6 },
+  lockedLine: { height: 6, borderRadius: 3, backgroundColor: "#1c2024" },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",

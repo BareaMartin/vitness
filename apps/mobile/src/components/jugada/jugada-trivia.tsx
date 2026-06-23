@@ -5,6 +5,7 @@ import type { PlayScript, TriviaResult } from "@vitness/shared";
 import { ThemedText } from "@/components/themed-text";
 import { Brand, Spacing } from "@/constants/theme";
 import { useJugadaTrivia } from "@/hooks/use-jugada-trivia";
+import { GoalCelebration } from "@/components/sticker/goal-animation";
 import JugadaCanvas, { type Kit } from "./jugada-canvas";
 
 const PITCH_RATIO = 80 / 120;
@@ -53,6 +54,8 @@ export function JugadaTrivia({
   const [playToken, setPlayToken] = useState(0);
   const [watched, setWatched] = useState(false);
   const [reveal, setReveal] = useState(false); // questions revealed
+  const [celebrating, setCelebrating] = useState(false);
+  const [celebrated, setCelebrated] = useState(false);
 
   const width = Math.min(screenW - Spacing.three * 2, 540);
   const height = Math.round(width * PITCH_RATIO);
@@ -106,7 +109,15 @@ export function JugadaTrivia({
             height={height}
             playToken={playToken}
             revealed={!!result || (!loading && !challenge)}
-            onComplete={() => setWatched(true)}
+            onComplete={() => {
+                // First completion: show celebration then unlock questions.
+                // If user already revealed manually (skipped), go straight to watched.
+                if (!celebrated && !reveal) {
+                  setCelebrating(true);
+                } else {
+                  setWatched(true);
+                }
+              }}
             homeKit={homeKit}
             awayKit={awayKit}
           />
@@ -116,6 +127,16 @@ export function JugadaTrivia({
             </ThemedText>
           </Pressable>
         </View>
+
+        {celebrating && (
+          <GoalCelebration
+            onDone={() => {
+              setCelebrating(false);
+              setCelebrated(true);
+              setWatched(true);
+            }}
+          />
+        )}
 
         <ScrollView style={{ width }} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           {loading ? (
@@ -130,9 +151,7 @@ export function JugadaTrivia({
             <ThemedText type="small" themeColor="textSecondary" style={styles.centerNote}>
               Reconstrucción estilizada — el desafío &ldquo;¿quién participó?&rdquo; llega para este partido.
             </ThemedText>
-          ) : result ? (
-            <ResultPanel result={result} />
-          ) : !showQuestions ? (
+          ) : !showQuestions && !result ? (
             // Anticipation gate — watch first, then guess.
             <View style={styles.gate}>
               <ThemedText type="default" style={styles.gateTitle}>
@@ -149,19 +168,24 @@ export function JugadaTrivia({
             </View>
           ) : (
             <>
-              <View style={styles.progressRow}>
-                <ThemedText type="smallBold" style={styles.progressLabel}>
-                  {answeredCount}/{slots.length} respondidas
-                </ThemedText>
-                <Pressable onPress={replay} hitSlop={Spacing.two}>
-                  <ThemedText type="small" style={styles.replayInline}>
-                    ↺ Ver de nuevo
+              {result ? (
+                <ResultPanel result={result} />
+              ) : (
+                <View style={styles.progressRow}>
+                  <ThemedText type="smallBold" style={styles.progressLabel}>
+                    {answeredCount}/{slots.length} respondidas
                   </ThemedText>
-                </Pressable>
-              </View>
+                  <Pressable onPress={replay} hitSlop={Spacing.two}>
+                    <ThemedText type="small" style={styles.replayInline}>
+                      ↺ Ver de nuevo
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
 
               {slots.map((slot) => {
                 const picked = answers[slot.slotId];
+                const correctId = result?.reveal[slot.slotId];
                 return (
                   <View key={slot.slotId} style={styles.card}>
                     <ThemedText type="smallBold" style={styles.cardTag}>
@@ -173,13 +197,27 @@ export function JugadaTrivia({
                     <View style={styles.options}>
                       {slot.options.map((opt) => {
                         const isPicked = picked === opt.id;
+                        const isCorrect = !!result && correctId === opt.id;
+                        const isWrongPick = !!result && isPicked && correctId !== opt.id;
                         return (
                           <Pressable
                             key={opt.id}
+                            disabled={!!result}
                             onPress={() => setAnswers((a) => ({ ...a, [slot.slotId]: opt.id }))}
-                            style={[styles.option, isPicked && styles.optionPicked]}>
-                            <ThemedText type="small" style={[styles.optionText, isPicked && styles.optionTextPicked]}>
+                            style={[
+                              styles.option,
+                              !result && isPicked && styles.optionPicked,
+                              isCorrect && styles.optionCorrect,
+                              isWrongPick && styles.optionWrong,
+                            ]}>
+                            <ThemedText
+                              type="small"
+                              style={[
+                                styles.optionText,
+                                (isPicked || isCorrect) && styles.optionTextPicked,
+                              ]}>
                               {opt.label}
+                              {isCorrect ? "  ✓" : isWrongPick ? "  ✗" : ""}
                             </ThemedText>
                           </Pressable>
                         );
@@ -189,14 +227,22 @@ export function JugadaTrivia({
                 );
               })}
 
-              <Pressable
-                disabled={!allAnswered || submitting}
-                onPress={lock}
-                style={[styles.lock, { opacity: allAnswered && !submitting ? 1 : 0.45 }]}>
-                <ThemedText type="default" style={styles.lockText}>
-                  {submitting ? "Verificando…" : allAnswered ? "Confirmar respuestas" : `Faltan ${slots.length - answeredCount}`}
-                </ThemedText>
-              </Pressable>
+              {result ? (
+                <Pressable style={styles.doneBtn} onPress={onClose}>
+                  <ThemedText type="default" style={styles.doneText}>
+                    Seguir
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  disabled={!allAnswered || submitting}
+                  onPress={lock}
+                  style={[styles.lock, { opacity: allAnswered && !submitting ? 1 : 0.45 }]}>
+                  <ThemedText type="default" style={styles.lockText}>
+                    {submitting ? "Verificando…" : allAnswered ? "Confirmar respuestas" : `Faltan ${slots.length - answeredCount}`}
+                  </ThemedText>
+                </Pressable>
+              )}
             </>
           )}
         </ScrollView>
@@ -342,6 +388,8 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   optionPicked: { borderColor: Brand.accent, backgroundColor: "rgba(22,196,127,0.14)" },
+  optionCorrect: { borderColor: CORRECT, backgroundColor: "rgba(22,196,127,0.22)" },
+  optionWrong: { borderColor: WRONG, backgroundColor: "rgba(224,86,59,0.2)" },
   optionText: { color: "#d7dbe0", textAlign: "center", fontWeight: "600" },
   optionTextPicked: { color: "#ffffff" },
   lock: {
@@ -352,7 +400,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginTop: Spacing.one,
   },
+  doneBtn: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    paddingVertical: Spacing.three,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999,
+    marginTop: Spacing.one,
+  },
   lockText: { color: Brand.accentInk, fontWeight: "800" },
+  doneText: { color: "#ffffff", fontWeight: "800" },
 
   // result
   result: { alignItems: "center", gap: Spacing.three, paddingVertical: Spacing.three },

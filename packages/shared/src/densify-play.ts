@@ -9,19 +9,25 @@ import type { PitchPoint, PlayScript } from "./play-script.ts";
  * reconstructions) are returned untouched. Pure + deterministic.
  */
 
-// Outfield formation slots, as {dx, y} offsets from a moving team anchor; dx is
-// measured along the attacking direction. Taken in order to top each side up.
-const AWAY_SLOTS = [
-  { dx: 6, y: 14, yg: 0.12, cap: 9 }, { dx: 6, y: 31, yg: 0.12, cap: 9 }, { dx: 6, y: 49, yg: 0.12, cap: 9 }, { dx: 6, y: 66, yg: 0.12, cap: 9 },
-  { dx: -13, y: 22, yg: 0.2, cap: 9.5 }, { dx: -13, y: 40, yg: 0.2, cap: 9.5 }, { dx: -13, y: 58, yg: 0.2, cap: 9.5 },
-  { dx: -32, y: 28, yg: 0.24, cap: 10 }, { dx: -32, y: 40, yg: 0.24, cap: 10 }, { dx: -32, y: 52, yg: 0.24, cap: 10 },
+// Formation players are NOT in the move — they hold a fixed spot while the ball
+// and the on-ball actors do the work. `rest` is yards in front of their own goal
+// (away defends the attacked goal; home sits up from its own); `ry` is the lane.
+interface SlotCfg {
+  rest: number;
+  ry: number;
+}
+// Opposition shape (defends the attacked goal): a still back four / midfield
+// three / front three the ball threads through.
+const AWAY_SLOTS: SlotCfg[] = [
+  { rest: 6, ry: 14 }, { rest: 4, ry: 30 }, { rest: 7, ry: 50 }, { rest: 5, ry: 66 },
+  { rest: 22, ry: 22 }, { rest: 25, ry: 40 }, { rest: 20, ry: 58 },
+  { rest: 37, ry: 28 }, { rest: 40, ry: 40 }, { rest: 35, ry: 52 },
 ];
-const HOME_SLOTS = [
-  { dx: 0, y: 20, yg: 0.15, cap: 11 }, { dx: 0, y: 60, yg: 0.15, cap: 11 },
-  { dx: -12, y: 40, yg: 0.15, cap: 11 }, { dx: -14, y: 12, yg: 0.12, cap: 10 },
-  { dx: -14, y: 68, yg: 0.12, cap: 10 }, { dx: 10, y: 30, yg: 0.18, cap: 11 },
-  { dx: 10, y: 50, yg: 0.18, cap: 11 }, { dx: -26, y: 40, yg: 0.12, cap: 10 },
-  { dx: -40, y: 26, yg: 0.1, cap: 10 }, { dx: -40, y: 54, yg: 0.1, cap: 10 },
+// Scoring team's team-mates: hold their shape behind the move.
+const HOME_SLOTS: SlotCfg[] = [
+  { rest: 55, ry: 18 }, { rest: 51, ry: 62 }, { rest: 43, ry: 40 }, { rest: 35, ry: 12 },
+  { rest: 35, ry: 68 }, { rest: 61, ry: 30 }, { rest: 61, ry: 50 }, { rest: 29, ry: 40 },
+  { rest: 26, ry: 26 }, { rest: 26, ry: 54 },
 ];
 
 export function densifyPlayScript(script: PlayScript): PlayScript {
@@ -45,10 +51,10 @@ export function densifyPlayScript(script: PlayScript): PlayScript {
   const round = (v: number) => Math.round(v * 10) / 10;
 
   // A capped track for one added player, sampled per keyframe from a target fn.
-  const track = (target: (b: PitchPoint) => PitchPoint, cap: number): PitchPoint[] => {
+  const track = (target: (b: PitchPoint, i: number) => PitchPoint, cap: number): PitchPoint[] => {
     const out: PitchPoint[] = [];
     for (let i = 0; i < kf.length; i++) {
-      const tgt = target(kf[i]!.ball);
+      const tgt = target(kf[i]!.ball, i);
       if (i === 0) {
         out.push(tgt);
         continue;
@@ -66,25 +72,20 @@ export function densifyPlayScript(script: PlayScript): PlayScript {
 
   const added: { slotId: string; team: "home" | "away"; role: "carrier" | "defender" | "keeper"; pos: PitchPoint[] }[] = [];
 
-  // opposition block (defending the attacked goal)
-  const awayAnchor = (b: PitchPoint) => clampX(b.x + dir * 4);
+  // A player who holds one spot for the whole play (not involved in the move).
+  const stat = (x: number, y: number): PitchPoint[] => {
+    const p = { x: round(clampX(x)), y: round(clampY(y)) };
+    return kf.map(() => p);
+  };
+
+  // opposition block (defending the attacked goal): a still shape, `rest` yd in
+  // front of that goal, that the ball threads through.
   AWAY_SLOTS.slice(0, needAwayOut).forEach((o, k) =>
-    added.push({
-      slotId: `fillA${k}`,
-      team: "away",
-      role: "defender",
-      pos: track((b) => ({ x: awayAnchor(b) + dir * o.dx, y: o.y + (b.y - 40) * o.yg }), o.cap),
-    }),
+    added.push({ slotId: `fillA${k}`, team: "away", role: "defender", pos: stat(awayGoalX - dir * o.rest, o.ry) }),
   );
-  // scoring team's trailing team-mates
-  const homeAnchor = (b: PitchPoint) => clampX(b.x - dir * 30);
+  // scoring team's trailing team-mates: still, holding shape behind the move.
   HOME_SLOTS.slice(0, needHomeOut).forEach((o, k) =>
-    added.push({
-      slotId: `fillH${k}`,
-      team: "home",
-      role: "carrier",
-      pos: track((b) => ({ x: homeAnchor(b) + dir * o.dx, y: o.y + (b.y - 40) * o.yg }), o.cap),
-    }),
+    added.push({ slotId: `fillH${k}`, team: "home", role: "carrier", pos: stat(homeGoalX + dir * o.rest, o.ry) }),
   );
   // goalkeepers (one per side, if the play didn't already have them)
   if (!awayHasGk) {
@@ -96,12 +97,8 @@ export function densifyPlayScript(script: PlayScript): PlayScript {
     });
   }
   if (!homeHasGk) {
-    added.push({
-      slotId: "fillGkH",
-      team: "home",
-      role: "keeper",
-      pos: track((b) => ({ x: homeGoalX, y: lerp(40, b.y, 0.2) }), 6),
-    });
+    // the far keeper isn't part of the move — hold the goal line.
+    added.push({ slotId: "fillGkH", team: "home", role: "keeper", pos: stat(homeGoalX, 40) });
   }
 
   const keyframes = kf.map((k, i) => {

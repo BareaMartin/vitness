@@ -31,11 +31,14 @@ async function main(): Promise<void> {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? LOCAL_SERVICE_ROLE_KEY;
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-  const { data: golazoJugada } = await supabase
+  // Map each retro jugada's provider id → row id, to embed in its golazo card.
+  const { data: retroJugadas } = await supabase
     .from("jugadas")
-    .select("id")
-    .eq("provider_event_id", "arg-mex-e10")
-    .maybeSingle();
+    .select("id, provider_event_id")
+    .eq("source", "retro");
+  const jugadaIdByEvent = new Map<string, string>(
+    ((retroJugadas as { id: string; provider_event_id: string }[]) ?? []).map((j) => [j.provider_event_id, j.id]),
+  );
 
   const rows: StickerRow[] = [];
   let slot = 0;
@@ -92,30 +95,46 @@ async function main(): Promise<void> {
     },
   });
 
-  rows.push({
-    match_id: DEMO_MATCH_ID,
-    team_code: arg.team.code,
-    album_slot: slot++,
-    rarity: "legendary",
-    roll_rarity: "legendary",
-    title: "Messi · 76' winner",
-    subtitle: "Golazo",
-    embedded_jugada_id: golazoJugada?.id ?? null,
-    meta: {
-      kind: "golazo",
+  // Golazos: six real WC2022 stunners, each unlocking its StatsBomb reconstruction.
+  // Tournament-wide (match_id null) so the Golazos tab shows them across nations.
+  const GOLAZOS: { team: string; title: string; player: string; moment: string }[] = [
+    { team: "Argentina", title: "Di María · the team goal", player: "Ángel Di María", moment: "retro-wc2022-final-dimaria" },
+    { team: "Argentina", title: "Messi · extra-time winner", player: "Lionel Messi", moment: "retro-wc2022-final-messi" },
+    { team: "France", title: "Mbappé · the comeback", player: "Kylian Mbappé", moment: "retro-wc2022-final-mbappe" },
+    { team: "Brazil", title: "Richarlison · bicycle kick", player: "Richarlison", moment: "retro-wc2022-bra-ser-richarlison" },
+    { team: "Argentina", title: "Messi · unlocks Mexico", player: "Lionel Messi", moment: "retro-wc2022-arg-mex-messi" },
+    { team: "France", title: "Mbappé · vs Poland", player: "Kylian Mbappé", moment: "retro-wc2022-fra-pol-mbappe" },
+  ];
+  for (const g of GOLAZOS) {
+    const squad = SQUADS_BY_NAME[g.team];
+    if (!squad) continue;
+    const jid = jugadaIdByEvent.get(g.moment) ?? null;
+    rows.push({
+      match_id: null,
+      team_code: squad.team.code,
+      album_slot: slot++,
       rarity: "legendary",
-      team: arg.team,
-      title: "Messi · 76' winner",
+      roll_rarity: "legendary",
+      title: g.title,
       subtitle: "Golazo",
-      playerName: "Lionel Messi",
-      embeddedJugadaId: golazoJugada?.id ?? undefined,
-      historicMomentId: "retro-wc2022-final-messi",
-    },
-  });
+      embedded_jugada_id: jid,
+      meta: {
+        kind: "golazo",
+        rarity: "legendary",
+        team: squad.team,
+        title: g.title,
+        subtitle: "Golazo",
+        playerName: g.player,
+        embeddedJugadaId: jid ?? undefined,
+        historicMomentId: g.moment,
+      },
+    });
+  }
 
-  // Idempotent by kind: clear players + the demo specials, leave badges alone.
+  // Idempotent by kind: clear players + golazos + the demo specials, leave badges.
   await supabase.from("stickers").delete().eq("match_id", DEMO_MATCH_ID);
   await supabase.from("stickers").delete().is("match_id", null).eq("meta->>kind", "player");
+  await supabase.from("stickers").delete().is("match_id", null).eq("meta->>kind", "golazo");
   const { error } = await supabase.from("stickers").insert(rows);
   if (error) {
     console.error(`catalog insert failed: ${error.message}`);
@@ -127,7 +146,7 @@ async function main(): Promise<void> {
     return acc;
   }, {});
   console.log(`✓ seeded ${rows.length} stickers across ${seen.size} teams:`, JSON.stringify(byRarity));
-  console.log(`  golazo linked to jugada: ${golazoJugada?.id ?? "(none — seed jugadas first)"}`);
+  console.log(`  golazos: ${GOLAZOS.length} (linked jugadas: ${[...jugadaIdByEvent.keys()].length})`);
 }
 
 main().catch((err) => {

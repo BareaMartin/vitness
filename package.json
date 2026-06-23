@@ -6,6 +6,7 @@
   "description": "VITNESS — second-screen World Cup companion: 2D play reconstructions, who-was-in-the-play trivia, and a sticker album you earn by watching.",
   "scripts": {
     "mobile": "pnpm --filter mobile start",
+    "export:web": "pnpm --filter mobile export:web",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "vitest run",

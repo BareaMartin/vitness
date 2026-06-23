@@ -15,34 +15,20 @@ export default function AppTabs() {
       labelStyle={{ selected: { color: Brand.accent } }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="explore">
         <NativeTabs.Trigger.Label>Álbum</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
+          sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }}
+          md="grid_view"
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="golazos">
         <NativeTabs.Trigger.Label>Golazos</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="mundial">
-        <NativeTabs.Trigger.Label>Mundial</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon sf="soccerball" md="sports_soccer" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

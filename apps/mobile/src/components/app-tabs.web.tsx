@@ -7,10 +7,32 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { Pressable, Text, View, StyleSheet } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 import { ThemedText } from './themed-text';
 
 import { Brand, MaxContentWidth, Spacing } from '@/constants/theme';
+
+type GlyphName = 'home' | 'album' | 'golazos';
+
+/** Monochrome line icons for the web top-nav, tinted to match the label. */
+function TabGlyph({ name, color }: { name: GlyphName; color: string }) {
+  const common = { stroke: color, strokeWidth: 1.8, fill: 'none' as const, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24">
+      {name === 'home' && <Path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" {...common} />}
+      {name === 'album' && (
+        <Path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" {...common} />
+      )}
+      {name === 'golazos' && (
+        <>
+          <Circle cx={12} cy={12} r={8} {...common} />
+          <Path d="M12 7.5l3.2 2.3-1.2 3.7h-4l-1.2-3.7z" {...common} />
+        </>
+      )}
+    </Svg>
+  );
+}
 
 export default function AppTabs() {
   return (
@@ -19,16 +41,13 @@ export default function AppTabs() {
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
+            <TabButton glyph="home">Home</TabButton>
           </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Álbum</TabButton>
+            <TabButton glyph="album">Álbum</TabButton>
           </TabTrigger>
           <TabTrigger name="golazos" href="/golazos" asChild>
-            <TabButton>Golazos</TabButton>
-          </TabTrigger>
-          <TabTrigger name="mundial" href="/mundial" asChild>
-            <TabButton>Mundial</TabButton>
+            <TabButton glyph="golazos">Golazos</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -36,7 +55,13 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+export function TabButton({
+  children,
+  isFocused,
+  glyph,
+  ...props
+}: TabTriggerSlotProps & { glyph?: GlyphName }) {
+  const tint = isFocused ? Brand.accent : '#9BA1A8';
   return (
     <Pressable
       {...props}
@@ -45,6 +70,7 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
         isFocused && styles.tabButtonActive,
         pressed && styles.pressed,
       ]}>
+      {glyph ? <TabGlyph name={glyph} color={tint} /> : null}
       <ThemedText
         type="small"
         themeColor={isFocused ? 'text' : 'textSecondary'}
@@ -139,6 +165,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   tabButtonView: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: 999,

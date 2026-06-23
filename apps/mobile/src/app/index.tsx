@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { MatchList } from "@/components/match/match-list";
+import { MatchList, type SelectedMatch } from "@/components/match/match-list";
 import { MatchRoom } from "@/components/match/match-room";
+import { MatchAlbum } from "@/components/match/match-album";
 import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -13,7 +14,8 @@ import { retroJugadaOfTheDay } from "@/data/retro";
 
 export default function HomeScreen() {
   const { ready, error } = useSession();
-  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<SelectedMatch | null>(null);
+  const [watchingMatchId, setWatchingMatchId] = useState<string | null>(null);
   const [retroOpen, setRetroOpen] = useState(false);
   const retro = retroJugadaOfTheDay();
 
@@ -32,8 +34,15 @@ export default function HomeScreen() {
               Connecting…
             </ThemedText>
           </View>
-        ) : selectedMatchId ? (
-          <MatchRoom matchId={selectedMatchId} onBack={() => setSelectedMatchId(null)} />
+        ) : watchingMatchId ? (
+          <MatchRoom matchId={watchingMatchId} onBack={() => setWatchingMatchId(null)} />
+        ) : selectedMatch ? (
+          <MatchAlbum
+            homeTeam={selectedMatch.homeTeam}
+            awayTeam={selectedMatch.awayTeam}
+            onBack={() => setSelectedMatch(null)}
+            onWatch={() => setWatchingMatchId(selectedMatch.id)}
+          />
         ) : (
           <View style={styles.list}>
             {retro ? (
@@ -60,7 +69,7 @@ export default function HomeScreen() {
                 </ThemedView>
               </Pressable>
             ) : null}
-            <MatchList onSelect={setSelectedMatchId} />
+            <MatchList onSelect={setSelectedMatch} />
           </View>
         )}
       </SafeAreaView>

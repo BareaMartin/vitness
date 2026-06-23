@@ -95,10 +95,11 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
     let active = true;
     (async () => {
       if (packId.startsWith("mock-pack-")) {
+        // Mirror the real open_pack pool: match-specific + tournament-wide (match_id IS NULL).
         const { data: catalog, error: catalogError } = await supabase
           .from("stickers")
           .select("id, meta")
-          .eq("match_id", DEMO_MATCH_ID);
+          .or(`match_id.eq.${DEMO_MATCH_ID},match_id.is.null`);
         if (!active) return;
         if (catalogError) {
           setError(catalogError.message);
@@ -111,10 +112,12 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
           return;
         }
 
-        const mockRows: Revealed[] = Array.from({ length: 3 }, (_, slot) => {
-          const pick = pool[Math.floor(Math.random() * pool.length)]!;
-          return { slot, card: pick.meta };
-        });
+        // Shuffle and pick 3 unique cards — no repeats within one pack.
+        const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+        const mockRows: Revealed[] = shuffled.slice(0, 3).map((pick, slot) => ({
+          slot,
+          card: pick.meta,
+        }));
         setCards(mockRows);
         return;
       }
@@ -273,10 +276,6 @@ function TearablePack({
     };
   });
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(drag.value / TEAR_THRESHOLD, 1) * (1 - tear.value),
-  }));
-
   return (
     <View style={styles.packArea}>
       <GestureDetector gesture={pan}>
@@ -300,8 +299,6 @@ function TearablePack({
               <TornEdge />
             </View>
           </Animated.View>
-
-          <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none" />
         </View>
       </GestureDetector>
     </View>
@@ -430,15 +427,6 @@ const styles = StyleSheet.create({
   },
   faceShift: { marginTop: -TEAR_Y },
   tornEdge: { position: "absolute", top: TEAR_Y - TEETH_H / 2, left: 0 },
-  glow: {
-    position: "absolute",
-    top: TEAR_Y - 8,
-    left: 8,
-    right: 8,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#FFE08A",
-  },
   packEmblem: { alignItems: "center", gap: 6 },
   packBall: { fontSize: 44, lineHeight: 48 },
   packWord: { color: "#DCEBFB", letterSpacing: 2 },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { composePlayScript, type Match, type MatchEvent } from "@vitness/shared";
 
@@ -71,6 +71,25 @@ export function MatchRoom({ matchId, onBack }: { matchId: string; onBack: () => 
   const { match, events, score, minute, loading, error } = useMatchRoom(matchId);
   const { coins, refresh: refreshCoins } = useCoins();
   const [openGoal, setOpenGoal] = useState<MatchEvent | null>(null);
+
+  // When a goal happens live, auto-run its reconstruction (which itself rolls
+  // into the trivia). Goals already in the feed when you open the room are
+  // marked seen so only new ones pop; older goals stay tappable via "▶ Watch".
+  const seenGoals = useRef<Set<string>>(new Set());
+  const primed = useRef(false);
+  useEffect(() => {
+    const goals = events.filter((e) => e.type === "goal");
+    if (!primed.current) {
+      goals.forEach((g) => seenGoals.current.add(g.providerEventId));
+      primed.current = true;
+      return;
+    }
+    const fresh = goals.find((g) => !seenGoals.current.has(g.providerEventId));
+    if (fresh) {
+      seenGoals.current.add(fresh.providerEventId);
+      setOpenGoal(fresh);
+    }
+  }, [events]);
 
   if (error) {
     return (

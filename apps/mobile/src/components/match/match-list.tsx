@@ -15,7 +15,13 @@ interface MatchRow {
   status: Match["status"];
 }
 
-export function MatchList({ onSelect }: { onSelect: (matchId: string) => void }) {
+export interface SelectedMatch {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+}
+
+export function MatchList({ onSelect }: { onSelect: (match: SelectedMatch) => void }) {
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +65,11 @@ export function MatchList({ onSelect }: { onSelect: (matchId: string) => void })
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {matches.map((m) => (
-            <MatchCard key={m.id} match={m} onPress={() => onSelect(m.id)} />
+            <MatchCard
+              key={m.id}
+              match={m}
+              onPress={() => onSelect({ id: m.id, homeTeam: m.home_team, awayTeam: m.away_team })}
+            />
           ))}
         </ScrollView>
       )}
