@@ -19,7 +19,6 @@ import { type StickerCard as Card, RARITY_COLOR } from "@vitness/shared";
 
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
-import { DEMO_MATCH_ID } from "@/hooks/use-collection";
 import { supabase } from "@/lib/supabase";
 import { GoalCelebration } from "./goal-animation";
 import { StickerCard } from "./sticker-card";
@@ -94,34 +93,8 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
   useEffect(() => {
     let active = true;
     (async () => {
-      if (packId.startsWith("mock-pack-")) {
-        // Mirror the real open_pack pool: match-specific + tournament-wide (match_id IS NULL).
-        const { data: catalog, error: catalogError } = await supabase
-          .from("stickers")
-          .select("id, meta")
-          .or(`match_id.eq.${DEMO_MATCH_ID},match_id.is.null`);
-        if (!active) return;
-        if (catalogError) {
-          setError(catalogError.message);
-          return;
-        }
-
-        const pool = ((catalog as { id: string; meta: Card }[]) ?? []).filter((s) => s.meta);
-        if (pool.length === 0) {
-          setError("No stickers available to mock-pack.");
-          return;
-        }
-
-        // Shuffle and pick 3 unique cards — no repeats within one pack.
-        const shuffled = pool.slice().sort(() => Math.random() - 0.5);
-        const mockRows: Revealed[] = shuffled.slice(0, 3).map((pick, slot) => ({
-          slot,
-          card: pick.meta,
-        }));
-        setCards(mockRows);
-        return;
-      }
-
+      // Server-authoritative roll: persists the pulled cards to user_stickers and
+      // flips the pack to opened (idempotent — reopening returns the same cards).
       const { data: rolled, error: openErr } = await supabase.rpc("open_pack", { p_pack_id: packId });
       if (!active) return;
       if (openErr) {
@@ -178,12 +151,12 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
       <Animated.View style={[styles.sheet, sheetStyle]}>
         <ThemedText type="default" style={styles.title}>
           {error
-            ? "Could not open pack"
+            ? "No se pudo abrir el sobre"
             : showCards
-              ? "You pulled"
+              ? "¡Te salieron!"
               : phase === "sealed"
-                ? "Tear it open"
-                : "Opening…"}
+                ? "Abrí el sobre"
+                : "Abriendo…"}
         </ThemedText>
 
         {error ? (
@@ -204,9 +177,12 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
           <TearablePack pan={pan} drag={drag} tear={tear} />
         )}
 
-        <Pressable style={styles.done} onPress={onDone} disabled={!showCards}>
+        <Pressable
+          style={styles.done}
+          onPress={showCards ? onDone : phase === "sealed" ? startRip : undefined}
+          disabled={phase === "ripping"}>
           <ThemedText type="small" style={styles.doneText}>
-            {showCards ? "Add to album" : phase === "sealed" ? "Drag the pack down ↓" : "…"}
+            {showCards ? "Sumar al álbum" : phase === "sealed" ? "Abrir sobre ▸" : "Abriendo…"}
           </ThemedText>
         </Pressable>
       </Animated.View>

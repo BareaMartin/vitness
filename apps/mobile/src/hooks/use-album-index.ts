@@ -5,9 +5,9 @@ import Constants from "expo-constants";
 import { supabase } from "@/lib/supabase";
 
 const extra = Constants.expoConfig?.extra ?? {};
-const configuredMockPackCount = Number(extra.mockPackCount ?? 0);
-const MOCK_PACK_COUNT = Number.isFinite(configuredMockPackCount)
-  ? Math.max(0, Math.trunc(configuredMockPackCount))
+const configuredDemoPackCount = Number(extra.mockPackCount ?? 0);
+const DEMO_PACK_COUNT = Number.isFinite(configuredDemoPackCount)
+  ? Math.max(0, Math.trunc(configuredDemoPackCount))
   : 0;
 
 export interface AlbumSummary {
@@ -48,6 +48,11 @@ export function useAlbumIndex(): AlbumIndexState {
 
   const refresh = useCallback(() => {
     void (async () => {
+      // Top up the one-time demo allotment (idempotent server-side), so a fresh
+      // player has real, openable packs without earning trivia first.
+      if (DEMO_PACK_COUNT > 0) {
+        await supabase.rpc("grant_demo_packs", { p_count: DEMO_PACK_COUNT });
+      }
       const [{ data: cards }, { data: owned }, { data: packs }] = await Promise.all([
         supabase
           .from("stickers")
@@ -56,11 +61,7 @@ export function useAlbumIndex(): AlbumIndexState {
           .neq("meta->>kind", "golazo")
           .order("album_slot", { ascending: true }),
         supabase.from("user_stickers").select("sticker_id"),
-        MOCK_PACK_COUNT > 0
-          ? Promise.resolve({
-              data: Array.from({ length: MOCK_PACK_COUNT }, (_, i) => ({ id: `mock-pack-${i + 1}` })),
-            })
-          : supabase.from("packs").select("id").eq("state", "unopened"),
+        supabase.from("packs").select("id").eq("state", "unopened"),
       ]);
 
       const ownedSet = new Set(
