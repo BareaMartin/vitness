@@ -1,21 +1,22 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { MatchList, type SelectedMatch } from "@/components/match/match-list";
-import { MatchRoom } from "@/components/match/match-room";
-import { MatchAlbum } from "@/components/match/match-album";
 import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
+import { Brand, BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
 import { useSession } from "@/hooks/use-session";
 import { retroJugadaOfTheDay } from "@/data/retro";
 
+/**
+ * Home — the showcase. The 2026 fixtures are fabricated, so the home leads with
+ * the one piece of real, fully-produced content: the Jugada del Día, the 2022
+ * World Cup final (Argentina vs France). Watch the reconstruction, prove you saw
+ * it, earn the pack. Albums + golazos live on their own tabs.
+ */
 export default function HomeScreen() {
   const { ready, error } = useSession();
-  const [selectedMatch, setSelectedMatch] = useState<SelectedMatch | null>(null);
-  const [watchingMatchId, setWatchingMatchId] = useState<string | null>(null);
   const [retroOpen, setRetroOpen] = useState(false);
   const retro = retroJugadaOfTheDay();
 
@@ -34,17 +35,20 @@ export default function HomeScreen() {
               Connecting…
             </ThemedText>
           </View>
-        ) : watchingMatchId ? (
-          <MatchRoom matchId={watchingMatchId} onBack={() => setWatchingMatchId(null)} />
-        ) : selectedMatch ? (
-          <MatchAlbum
-            homeTeam={selectedMatch.homeTeam}
-            awayTeam={selectedMatch.awayTeam}
-            onBack={() => setSelectedMatch(null)}
-            onWatch={() => setWatchingMatchId(selectedMatch.id)}
-          />
         ) : (
-          <View style={styles.list}>
+          <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            <View style={styles.hero}>
+              <ThemedText type="smallBold" style={styles.kicker}>
+                LA FINAL DEL MUNDIAL · 2022
+              </ThemedText>
+              <ThemedText type="title" style={styles.heroTitle}>
+                🇦🇷 Argentina vs Francia 🇫🇷
+              </ThemedText>
+              <ThemedText type="default" themeColor="textSecondary" style={styles.heroSub}>
+                Reviví la jugada del día, demostrá que la viste y ganá tu primer sobre.
+              </ThemedText>
+            </View>
+
             {retro ? (
               <Pressable
                 onPress={() => setRetroOpen(true)}
@@ -69,8 +73,14 @@ export default function HomeScreen() {
                 </ThemedView>
               </Pressable>
             ) : null}
-            <MatchList onSelect={setSelectedMatch} />
-          </View>
+
+            <ThemedView type="backgroundElement" style={styles.hint}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Más golazos históricos en la pestaña <ThemedText type="smallBold">Golazos</ThemedText> ·
+                armá tu colección en <ThemedText type="smallBold">Álbum</ThemedText>.
+              </ThemedText>
+            </ThemedView>
+          </ScrollView>
         )}
       </SafeAreaView>
 
@@ -99,8 +109,12 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.three + WebHeaderInset,
     paddingBottom: BottomTabInset + Spacing.three,
   },
-  list: { flex: 1, gap: Spacing.three },
+  list: { gap: Spacing.three },
   pressed: { opacity: 0.7 },
+  hero: { gap: Spacing.one, paddingTop: Spacing.two },
+  kicker: { color: Brand.accent, fontSize: 12, letterSpacing: 1 },
+  heroTitle: { fontSize: 28, lineHeight: 34, fontWeight: "900" },
+  heroSub: { fontSize: 15, lineHeight: 21 },
   retroCard: {
     borderRadius: Spacing.three,
     padding: Spacing.three,
@@ -122,5 +136,6 @@ const styles = StyleSheet.create({
   retroBody: { flex: 1, gap: Spacing.half },
   retroKicker: { color: "#EF9F27", fontSize: 11, letterSpacing: 0.5 },
   retroTitle: { fontSize: 17, lineHeight: 22, fontWeight: "700" },
+  hint: { borderRadius: Spacing.two, padding: Spacing.three },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
 });

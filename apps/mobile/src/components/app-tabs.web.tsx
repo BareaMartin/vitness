@@ -82,17 +82,28 @@ export function TabButton({
 }
 
 export function CustomTabList(props: TabListProps) {
+  // The brand doubles as a "home" reset: tapping it hard-navigates to the
+  // matches page. Sub-screens live in local state (not routes), so the Home
+  // tab alone can't unwind them — a full reload to "/" is the reliable escape
+  // hatch from any deep view.
+  const goHome = () => {
+    if (typeof window !== 'undefined') window.location.assign('/');
+  };
   return (
     <View {...props} style={styles.tabListContainer}>
       <View style={styles.innerContainer}>
-        <View style={styles.brand}>
+        <Pressable
+          onPress={goHome}
+          accessibilityRole="link"
+          accessibilityLabel="VITNESS — volver al inicio"
+          style={({ pressed }) => [styles.brand, pressed && styles.pressed]}>
           <View style={styles.brandDot}>
             <Text style={styles.brandDotText}>V</Text>
           </View>
           <Text style={styles.brandText}>
             VIT<Text style={styles.brandTextAccent}>NESS</Text>
           </Text>
-        </View>
+        </Pressable>
 
         <View style={styles.tabs}>{props.children}</View>
       </View>
