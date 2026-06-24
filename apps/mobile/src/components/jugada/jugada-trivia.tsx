@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   lock: {
     alignSelf: "stretch",
     alignItems: "center",
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two,
     backgroundColor: Brand.accent,
     borderRadius: 999,
     marginTop: Spacing.one,
@@ -425,13 +425,13 @@ const styles = StyleSheet.create({
   doneBtn: {
     alignSelf: "stretch",
     alignItems: "center",
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 999,
     marginTop: Spacing.one,
   },
-  lockText: { color: Brand.accentInk, fontWeight: "800" },
-  doneText: { color: "#ffffff", fontWeight: "800" },
+  lockText: { color: Brand.accentInk, fontWeight: "800", fontSize: 14, lineHeight: 18 },
+  doneText: { color: "#ffffff", fontWeight: "800", fontSize: 14, lineHeight: 18 },
 
   // result
   result: { alignItems: "center", gap: Spacing.three, paddingVertical: Spacing.three },
