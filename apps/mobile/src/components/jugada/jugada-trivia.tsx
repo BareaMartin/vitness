@@ -402,8 +402,8 @@ const styles = StyleSheet.create({
   option: {
     minWidth: "47%",
     flexGrow: 1,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
+    paddingHorizontal: 13,
+    paddingVertical: 13,
     borderRadius: Spacing.two,
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1.5,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   optionPicked: { borderColor: Brand.accent, backgroundColor: "rgba(22,196,127,0.14)" },
   optionCorrect: { borderColor: CORRECT, backgroundColor: "rgba(22,196,127,0.22)" },
   optionWrong: { borderColor: WRONG, backgroundColor: "rgba(224,86,59,0.2)" },
-  optionText: { color: "#d7dbe0", textAlign: "center", fontWeight: "600" },
+  optionText: { color: "#d7dbe0", textAlign: "center", fontWeight: "600", fontSize: 11, lineHeight: 16 },
   optionTextPicked: { color: "#ffffff" },
   lock: {
     alignSelf: "stretch",
