@@ -4,30 +4,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
-import { useGolazos } from "@/hooks/use-golazos";
-import { StickerCard } from "@/components/sticker/sticker-card";
+import { WipNote } from "@/components/wip-note";
+import { BottomTabInset, Brand, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
 import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
-import { retroJugadaById } from "@/data/retro";
-
-/** Replaces "Player · description" with "??? · description" until trivia solved. */
-function maskedTitle(title: string): string {
-  const sep = title.indexOf(" · ");
-  return sep >= 0 ? `??? · ${title.slice(sep + 3)}` : "???";
-}
+import { RETRO_JUGADAS, type RetroJugada } from "@/data/retro";
 
 /**
- * Golazos — the special golazo cards, separated from the player album. Each
- * owned golazo unlocks a "historic moment": a real StatsBomb goal of that same
- * player, playable as a jugada-trivia reconstruction. Locked golazos tease the
- * moment they'd unlock. See ticket VIT-9.
+ * Golazos — the trivia hall. Every famous goal we have real StatsBomb data for,
+ * playable as a "who was in the play?" reconstruction. Each one you solve pays
+ * out coins + packs, so this is how you earn more sobres after the starter
+ * allotment. (Golazos are no longer collectible cards — the play IS the reward.)
  */
 export default function GolazosScreen() {
-  const { golazos, loading, refresh } = useGolazos();
-  const [openMomentId, setOpenMomentId] = useState<string | null>(null);
-
-  const ownedCount = golazos.filter((g) => g.owned).length;
-  const openJugada = openMomentId ? retroJugadaById(openMomentId) : null;
+  const [open, setOpen] = useState<RetroJugada | null>(null);
 
   return (
     <ThemedView style={styles.container}>
@@ -38,76 +27,56 @@ export default function GolazosScreen() {
               Golazos
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {ownedCount}/{golazos.length}
+              {RETRO_JUGADAS.length} jugadas
             </ThemedText>
           </View>
           <ThemedText type="small" themeColor="textSecondary">
-            Pull a golazo to unlock that player&apos;s real historic goal.
+            Reviví goles históricos, adiviná quién participó y ganá sobres por cada acierto.
           </ThemedText>
 
-          {loading ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              Loading…
-            </ThemedText>
-          ) : golazos.length === 0 ? (
-            <ThemedView type="backgroundElement" style={styles.empty}>
-              <ThemedText type="small" themeColor="textSecondary">
-                No golazos in this album yet.
-              </ThemedText>
-            </ThemedView>
-          ) : (
-            golazos.map((g) => {
-              const moment = retroJugadaById(g.card.historicMomentId);
-              const displayTitle = g.solved ? g.card.title : maskedTitle(g.card.title);
-              return (
-                <ThemedView key={g.id} type="backgroundElement" style={styles.card}>
-                  <StickerCard card={g.owned ? g.card : null} />
-                  <View style={styles.info}>
-                    <ThemedText type="default" style={styles.title}>
-                      {displayTitle}
-                    </ThemedText>
-                    {g.owned ? (
-                      moment ? (
-                        <>
-                          <ThemedText type="small" style={styles.unlocked}>
-                            ★ Historic moment unlocked
-                          </ThemedText>
-                          <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-                            ▶ {g.solved ? moment.title : maskedTitle(moment.title)}
-                          </ThemedText>
-                          <Pressable style={styles.playBtn} onPress={() => setOpenMomentId(moment.providerEventId)}>
-                            <ThemedText type="small" style={styles.playText}>
-                              Play the moment
-                            </ThemedText>
-                          </Pressable>
-                        </>
-                      ) : (
-                        <ThemedText type="small" themeColor="textSecondary">
-                          No historic moment linked.
-                        </ThemedText>
-                      )
-                    ) : (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        🔒 Pull this golazo to unlock the mystery scorer&apos;s real historic goal.
-                      </ThemedText>
-                    )}
-                  </View>
-                </ThemedView>
-              );
-            })
-          )}
+          {RETRO_JUGADAS.map((j) => (
+            <Pressable
+              key={j.providerEventId}
+              onPress={() => setOpen(j)}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedView type="backgroundElement" style={styles.card}>
+                <View style={styles.playBadge}>
+                  <ThemedText type="default" style={styles.playIcon}>
+                    ▶
+                  </ThemedText>
+                </View>
+                <View style={styles.info}>
+                  <ThemedText type="smallBold" style={styles.kicker}>
+                    STATSBOMB · TRIVIA
+                  </ThemedText>
+                  <ThemedText type="default" style={styles.title} numberOfLines={2}>
+                    {j.title}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    ¿Quién estuvo en la jugada? Acertá todo y ganá 5 sobres →
+                  </ThemedText>
+                </View>
+              </ThemedView>
+            </Pressable>
+          ))}
+
+          <WipNote title="Demo · datos reales pero limitados">
+            Estas son jugadas reales de StatsBomb (Mundial 2022). En producción, los
+            Golazos se poblarían con los goles reales del Mundial 2026 a medida que
+            ocurren — no las representaciones fabricadas que ves en otras secciones.
+          </WipNote>
         </ScrollView>
       </SafeAreaView>
 
-      {openJugada ? (
+      {open ? (
         <JugadaTrivia
-          script={openJugada.playScript}
-          providerEventId={openJugada.providerEventId}
-          title={openJugada.title}
-          homeKit={openJugada.home}
-          awayKit={openJugada.away}
-          onClose={() => setOpenMomentId(null)}
-          onAwarded={refresh}
+          script={open.playScript}
+          providerEventId={open.providerEventId}
+          title={open.title}
+          homeKit={open.home}
+          awayKit={open.away}
+          onClose={() => setOpen(null)}
+          onAwarded={() => {}}
         />
       ) : null}
     </ThemedView>
@@ -125,7 +94,7 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   heading: { fontSize: 28, lineHeight: 34 },
-  empty: { borderRadius: Spacing.two, padding: Spacing.three, marginTop: Spacing.one },
+  pressed: { opacity: 0.7 },
   card: {
     flexDirection: "row",
     gap: Spacing.three,
@@ -133,17 +102,19 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     marginTop: Spacing.one,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(239,159,39,0.5)",
   },
-  info: { flex: 1, gap: 4 },
-  title: { color: "#ffffff" },
-  unlocked: { color: "#EF9F27" },
-  playBtn: {
-    alignSelf: "flex-start",
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    backgroundColor: "#185FA5",
-    borderRadius: 999,
-    marginTop: Spacing.one,
+  playBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#EF9F27",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  playText: { color: "#ffffff" },
+  playIcon: { color: "#1a1206", fontSize: 18, lineHeight: 20, marginLeft: 2 },
+  info: { flex: 1, gap: Spacing.half },
+  kicker: { color: "#EF9F27", fontSize: 11, letterSpacing: 0.5 },
+  title: { color: "#ffffff", fontSize: 17, lineHeight: 22, fontWeight: "700" },
 });

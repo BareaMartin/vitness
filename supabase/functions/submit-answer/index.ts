@@ -58,7 +58,8 @@ Deno.serve(async (req: Request) => {
   }
 
   const coins = correct * 25;
-  const packs = total > 0 && correct === total ? 2 : 0;
+  // All correct → 5 packs; otherwise one pack per correct answer (some for some).
+  const packs = total > 0 && correct === total ? 5 : correct;
   const issuedAt = new Date().toISOString();
 
   const { data: awardRows, error: awardError } = await userClient.rpc("record_trivia_attempt", {

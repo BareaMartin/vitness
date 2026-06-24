@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { JugadaTrivia } from "@/components/jugada/jugada-trivia";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { WipNote } from "@/components/wip-note";
 import { Brand, BottomTabInset, MaxContentWidth, Spacing, WebHeaderInset } from "@/constants/theme";
 import { useSession } from "@/hooks/use-session";
 import { retroJugadaOfTheDay } from "@/data/retro";
@@ -76,10 +77,16 @@ export default function HomeScreen() {
 
             <ThemedView type="backgroundElement" style={styles.hint}>
               <ThemedText type="small" themeColor="textSecondary">
-                Más golazos históricos en la pestaña <ThemedText type="smallBold">Golazos</ThemedText> ·
-                armá tu colección en <ThemedText type="smallBold">Álbum</ThemedText>.
+                Jugá más trivias en la pestaña <ThemedText type="smallBold">Golazos</ThemedText> para ganar
+                sobres · armá tu colección en <ThemedText type="smallBold">Álbum</ThemedText>.
               </ThemedText>
             </ThemedView>
+
+            <WipNote title="Demo del Mundial 2026">
+              El fixture y los goles del Mundial 2026 todavía no existen, así que esta demo
+              corre sobre datos reales del 2022. En producción se poblaría con el fixture
+              real del 2026 y los goles a medida que se juegan — no representaciones fabricadas.
+            </WipNote>
           </ScrollView>
         )}
       </SafeAreaView>
