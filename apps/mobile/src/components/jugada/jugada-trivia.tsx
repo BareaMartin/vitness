@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import type { PlayScript, TriviaResult } from "@vitness/shared";
 
@@ -47,6 +47,7 @@ export function JugadaTrivia({
   awayKit?: Kit;
 }) {
   const { width: screenW, height: screenH } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
   const { challenge, loading, error, submit } = useJugadaTrivia(providerEventId);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<TriviaResult | null>(null);
@@ -72,6 +73,8 @@ export function JugadaTrivia({
     if (r) {
       setResult(r);
       onAwarded();
+      // Jump back to the top so the score + rewards are the first thing seen.
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
       // Re-run the play once more, now with the players' numbers on the jerseys.
       setPlayToken((n) => n + 1);
     }
@@ -138,7 +141,11 @@ export function JugadaTrivia({
           />
         )}
 
-        <ScrollView style={{ width }} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={[{ width }, styles.scroll]}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator={false}>
           {loading ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.centerNote}>
               Cargando la jugada…
@@ -227,25 +234,31 @@ export function JugadaTrivia({
                 );
               })}
 
-              {result ? (
-                <Pressable style={styles.doneBtn} onPress={onClose}>
-                  <ThemedText type="default" style={styles.doneText}>
-                    Seguir
-                  </ThemedText>
-                </Pressable>
-              ) : (
-                <Pressable
-                  disabled={!allAnswered || submitting}
-                  onPress={lock}
-                  style={[styles.lock, { opacity: allAnswered && !submitting ? 1 : 0.45 }]}>
-                  <ThemedText type="default" style={styles.lockText}>
-                    {submitting ? "Verificando…" : allAnswered ? "Confirmar respuestas" : `Faltan ${slots.length - answeredCount}`}
-                  </ThemedText>
-                </Pressable>
-              )}
             </>
           )}
         </ScrollView>
+
+        {/* Sticky action bar — always visible at the bottom of the sheet. */}
+        {challenge && showQuestions ? (
+          <View style={[styles.footer, { width }]}>
+            {result ? (
+              <Pressable style={styles.doneBtn} onPress={onClose}>
+                <ThemedText type="default" style={styles.doneText}>
+                  Seguir
+                </ThemedText>
+              </Pressable>
+            ) : (
+              <Pressable
+                disabled={!allAnswered || submitting}
+                onPress={lock}
+                style={[styles.lock, { opacity: allAnswered && !submitting ? 1 : 0.45 }]}>
+                <ThemedText type="default" style={styles.lockText}>
+                  {submitting ? "Verificando…" : allAnswered ? "Confirmar respuestas" : `Faltan ${slots.length - answeredCount}`}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -346,7 +359,13 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
   },
   replayText: { color: "#ffffff", fontWeight: "600" },
+  scroll: { flexShrink: 1 },
   body: { gap: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.two },
+  footer: {
+    paddingTop: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.08)",
+  },
   centerNote: { textAlign: "center", paddingVertical: Spacing.four },
 
   // anticipation gate
