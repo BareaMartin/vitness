@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { StickerCard } from "@vitness/shared";
 import Constants from "expo-constants";
 
@@ -24,6 +24,10 @@ export interface AlbumSummary {
 interface AlbumIndexState {
   albums: AlbumSummary[];
   unopenedPackIds: string[];
+  /** Team codes that gained a sticker since their album was last viewed. */
+  newTeams: string[];
+  /** Clear a team's "new" badge — call when its album is opened. */
+  markSeen: (teamCode: string) => void;
   loading: boolean;
   refresh: () => void;
 }
@@ -44,7 +48,15 @@ interface Row {
 export function useAlbumIndex(): AlbumIndexState {
   const [albums, setAlbums] = useState<AlbumSummary[]>([]);
   const [unopenedPackIds, setUnopenedPackIds] = useState<string[]>([]);
+  const [newTeams, setNewTeams] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  // Owned-per-team from the previous load; a team whose count rises has new
+  // stickers to show. null until the first load so the baseline isn't flagged.
+  const prevOwned = useRef<Map<string, number> | null>(null);
+
+  const markSeen = useCallback((teamCode: string) => {
+    setNewTeams((prev) => prev.filter((t) => t !== teamCode));
+  }, []);
 
   const refresh = useCallback(() => {
     void (async () => {
@@ -89,6 +101,17 @@ export function useAlbumIndex(): AlbumIndexState {
         }))
         .sort((a, b) => a.title.localeCompare(b.title));
 
+      // Flag teams whose owned count rose since the last load (a freshly opened
+      // pack), so the index can badge them. Skip the first load (baseline).
+      const ownedByTeam = new Map(teamAlbums.map((a) => [a.teamCode, a.owned]));
+      if (prevOwned.current) {
+        const gained = teamAlbums
+          .filter((a) => a.owned > (prevOwned.current!.get(a.teamCode) ?? 0))
+          .map((a) => a.teamCode);
+        if (gained.length) setNewTeams((prev) => Array.from(new Set([...prev, ...gained])));
+      }
+      prevOwned.current = ownedByTeam;
+
       setAlbums(teamAlbums);
       setUnopenedPackIds(((packs as { id: string }[]) ?? []).map((p) => p.id));
       setLoading(false);
@@ -99,5 +122,5 @@ export function useAlbumIndex(): AlbumIndexState {
     refresh();
   }, [refresh]);
 
-  return { albums, unopenedPackIds, loading, refresh };
+  return { albums, unopenedPackIds, newTeams, markSeen, loading, refresh };
 }

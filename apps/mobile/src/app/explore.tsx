@@ -17,7 +17,7 @@ import { PackOpening } from "@/components/sticker/pack-opening";
  * VIT-6 / deploy polish.
  */
 export default function AlbumScreen() {
-  const { albums, unopenedPackIds, loading, refresh } = useAlbumIndex();
+  const { albums, unopenedPackIds, newTeams, markSeen, loading, refresh } = useAlbumIndex();
   const [openingPackId, setOpeningPackId] = useState<string | null>(null);
   const [selected, setSelected] = useState<AlbumSummary | null>(null);
 
@@ -73,7 +73,15 @@ export default function AlbumScreen() {
           ) : (
             <View style={styles.grid}>
               {albums.map((a) => (
-                <AlbumTile key={a.key} album={a} onPress={() => setSelected(a)} />
+                <AlbumTile
+                  key={a.key}
+                  album={a}
+                  isNew={newTeams.includes(a.teamCode)}
+                  onPress={() => {
+                    markSeen(a.teamCode);
+                    setSelected(a);
+                  }}
+                />
               ))}
             </View>
           )}
@@ -94,12 +102,17 @@ export default function AlbumScreen() {
 }
 
 /** A single album entry on the index: flag, name, and completion. */
-function AlbumTile({ album, onPress }: { album: AlbumSummary; onPress: () => void }) {
+function AlbumTile({ album, isNew, onPress }: { album: AlbumSummary; isNew: boolean; onPress: () => void }) {
   const pct = album.total > 0 ? Math.round((album.owned / album.total) * 100) : 0;
   const done = album.total > 0 && album.owned >= album.total;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView type="backgroundElement" style={styles.tile}>
+        {isNew ? (
+          <View style={styles.newBadge}>
+            <ThemedText style={styles.newBadgeText}>NUEVO</ThemedText>
+          </View>
+        ) : null}
         <View style={styles.tileTop}>
           <ThemedText style={styles.tileFlag}>{album.flag}</ThemedText>
           {done ? <ThemedText style={styles.tileCheck}>✓</ThemedText> : null}
@@ -250,6 +263,19 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.06)",
   },
+  newBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: Brand.accent,
+    borderWidth: 2,
+    borderColor: "#15171a",
+    zIndex: 2,
+  },
+  newBadgeText: { color: Brand.accentInk, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
   tileTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   tileFlag: { fontSize: 34, lineHeight: 40 },
   tileCheck: { color: Brand.accent, fontSize: 16, fontWeight: "900" },
