@@ -167,7 +167,7 @@ export function PackOpening({ packId, onDone }: { packId: string; onDone: () => 
           cards ? (
             <View style={styles.row}>
               {cards.map((c, i) => (
-                <RevealCard key={c.slot} card={c.card} index={i} />
+                <RevealCard key={c.slot} card={c.card} index={i} count={cards.length} />
               ))}
             </View>
           ) : (
@@ -282,12 +282,13 @@ function TearablePack({
 }
 
 /**
- * A single revealed card: flips in (rotateY) while scaling and sliding up on a
- * per-index stagger. Rare/golazo add a pulsing accent halo + a one-shot shimmer
- * sweep; golazo also fires a burst ring and a heavier overshoot once it lands.
- * Haptics fire as each special card lands (native only).
+ * A single revealed card: bursts out of the pack — all cards start stacked at
+ * the centre, then rise and fan out to their row slots with a flip and a slight
+ * tilt that straightens as they land (per-index stagger). Rare/golazo add a
+ * pulsing accent halo + a one-shot shimmer sweep; golazo also fires a burst ring
+ * and a heavier overshoot once it lands. Haptics fire on special lands (native).
  */
-function RevealCard({ card, index }: { card: Card; index: number }) {
+function RevealCard({ card, index, count }: { card: Card; index: number; count: number }) {
   const reveal = useSharedValue(0);
   const halo = useSharedValue(0);
   const shimmer = useSharedValue(-1);
@@ -323,15 +324,26 @@ function RevealCard({ card, index }: { card: Card; index: number }) {
     }
   }, [delay, special, isLegendary, reveal, halo, shimmer, burst]);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: reveal.value,
-    transform: [
-      { perspective: 800 },
-      { translateY: (1 - reveal.value) * 30 },
-      { scale: 0.5 + reveal.value * 0.5 },
-      { rotateY: `${(1 - reveal.value) * 90}deg` },
-    ],
-  }));
+  // All cards start stacked at the centre of the row (where the pack tore open)
+  // and travel out to their own slot as they reveal — so they clearly emerge
+  // from the pack instead of popping in place.
+  const center = (count - 1) / 2;
+  const SLOT = CARD_W + Spacing.two; // one slot pitch (card width + row gap)
+  const cardStyle = useAnimatedStyle(() => {
+    const p = reveal.value;
+    const r = 1 - p;
+    return {
+      opacity: Math.min(1, p * 1.6),
+      transform: [
+        { perspective: 800 },
+        { translateX: (center - index) * SLOT * r },
+        { translateY: r * 120 },
+        { rotateZ: `${(index - center) * 8 * r}deg` },
+        { scale: 0.6 + p * 0.4 },
+        { rotateY: `${r * 55}deg` },
+      ],
+    };
+  });
 
   const haloStyle = useAnimatedStyle(() => ({
     opacity: halo.value * 0.55 * reveal.value,
